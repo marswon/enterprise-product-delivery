@@ -4,6 +4,8 @@ Translate evidence into a product contract before choosing implementation.
 
 Define target roles; trigger, context, intent, and outcome; primary and exception journeys; entities, states, transitions, rules, permissions, and ownership; validation, cancellation, rejection, retry, reopening, recovery, and data lifecycle; success measures with baseline/formula/source/period/owner; scope, non-goals, compatibility, deferred work; and assumptions with validation actions.
 
+When `interface_scope` is `in-scope`, classify each user-facing capability by work pattern and interface surface using [business-ui-design.md](business-ui-design.md). Define business meaning and task outcomes here; defer component and visual choices to S3.
+
 Separate business outcome, product behavior, proposed implementation, and constraint. Treat implementation suggestions as hypotheses unless explicitly fixed.
 
 ## Vertical Outcome Slices

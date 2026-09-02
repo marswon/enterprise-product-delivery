@@ -26,6 +26,7 @@ def initialize(
     state_dir: str | None = None,
     mode: str = "feature",
     context: str | None = None,
+    interface_scope: str | None = None,
 ) -> subprocess.CompletedProcess[str]:
     args = [
         "--project-root", str(project),
@@ -38,6 +39,8 @@ def initialize(
         args.extend(["--state-dir", state_dir])
     if context:
         args.extend(["--context", context])
+    if interface_scope:
+        args.extend(["--interface-scope", interface_scope])
     return run_script("init_delivery_state.py", *args)
 
 
@@ -50,8 +53,11 @@ class ProdloopScriptTests(unittest.TestCase):
             self.assertTrue((project / ".prodloop" / "STATE.json").is_file())
             self.assertFalse((project / ".codex" / "delivery").exists())
             state = json.loads((project / ".prodloop" / "STATE.json").read_text())
-            self.assertEqual(state["schema_version"], 2)
+            self.assertEqual(state["schema_version"], 3)
             self.assertEqual(state["project_context"], "brownfield")
+            self.assertEqual(state["interface_scope"], "undetermined")
+            self.assertTrue((project / ".prodloop" / "UI_CONTRACT.md").is_file())
+            self.assertTrue((project / ".prodloop" / "UI_VERIFICATION.md").is_file())
 
             validation = run_script("validate_state.py", "--project-root", str(project))
             self.assertEqual(validation.returncode, 0, validation.stdout + validation.stderr)
@@ -77,6 +83,7 @@ class ProdloopScriptTests(unittest.TestCase):
             state["current_stage"] = "S2_PRODUCT_DEFINITION"
             state["gate_status"]["G0"] = "passed"
             state["gate_status"]["G1"] = "passed"
+            state["interface_scope"] = "out-of-scope"
             state["next_action"] = "Define the product delta"
             state_path.write_text(json.dumps(state), encoding="utf-8")
 
@@ -103,6 +110,75 @@ class ProdloopScriptTests(unittest.TestCase):
             state.pop("project_context")
             state_path.write_text(json.dumps(state), encoding="utf-8")
 
+            validation = run_script("validate_state.py", "--project-root", str(project))
+            self.assertEqual(validation.returncode, 0, validation.stdout + validation.stderr)
+
+    def test_v2_state_remains_valid(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp)
+            self.assertEqual(initialize(project).returncode, 0)
+            state_path = project / ".prodloop" / "STATE.json"
+            state = json.loads(state_path.read_text())
+            state["schema_version"] = 2
+            state.pop("interface_scope")
+            state_path.write_text(json.dumps(state), encoding="utf-8")
+
+            validation = run_script("validate_state.py", "--project-root", str(project))
+            self.assertEqual(validation.returncode, 0, validation.stdout + validation.stderr)
+
+    def test_g0_requires_explicit_interface_scope_for_v3(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp)
+            self.assertEqual(initialize(project, mode="greenfield").returncode, 0)
+            state_path = project / ".prodloop" / "STATE.json"
+            state = json.loads(state_path.read_text())
+            state["current_stage"] = "S1_DISCOVERY"
+            state["gate_status"]["G0"] = "passed"
+            state_path.write_text(json.dumps(state), encoding="utf-8")
+
+            validation = run_script("validate_state.py", "--project-root", str(project))
+            self.assertNotEqual(validation.returncode, 0)
+            self.assertIn("interface_scope is undetermined", validation.stdout)
+
+            state["interface_scope"] = "out-of-scope"
+            state_path.write_text(json.dumps(state), encoding="utf-8")
+            validation = run_script("validate_state.py", "--project-root", str(project))
+            self.assertEqual(validation.returncode, 0, validation.stdout + validation.stderr)
+
+    def test_interface_gates_require_ui_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp)
+            self.assertEqual(
+                initialize(project, mode="greenfield", interface_scope="in-scope").returncode,
+                0,
+            )
+            delivery = project / ".prodloop"
+            state_path = delivery / "STATE.json"
+            state = json.loads(state_path.read_text())
+            state["current_stage"] = "S4_DELIVERY_PLANNING"
+            for index in range(4):
+                state["gate_status"][f"G{index}"] = "passed"
+            state_path.write_text(json.dumps(state), encoding="utf-8")
+
+            validation = run_script("validate_state.py", "--project-root", str(project))
+            self.assertNotEqual(validation.returncode, 0)
+            self.assertIn("UI_CONTRACT.md is incomplete", validation.stdout)
+
+            contract = delivery / "UI_CONTRACT.md"
+            contract.write_text(contract.read_text().replace("Status: pending", "Status: complete"))
+            validation = run_script("validate_state.py", "--project-root", str(project))
+            self.assertEqual(validation.returncode, 0, validation.stdout + validation.stderr)
+
+            state["current_stage"] = "S7_RELEASE_READINESS"
+            for index in range(7):
+                state["gate_status"][f"G{index}"] = "passed"
+            state_path.write_text(json.dumps(state), encoding="utf-8")
+            validation = run_script("validate_state.py", "--project-root", str(project))
+            self.assertNotEqual(validation.returncode, 0)
+            self.assertIn("UI_VERIFICATION.md is incomplete", validation.stdout)
+
+            report = delivery / "UI_VERIFICATION.md"
+            report.write_text(report.read_text().replace("Status: pending", "Status: complete"))
             validation = run_script("validate_state.py", "--project-root", str(project))
             self.assertEqual(validation.returncode, 0, validation.stdout + validation.stderr)
 

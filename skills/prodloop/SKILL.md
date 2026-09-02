@@ -30,7 +30,7 @@ This Skill supports Codex and Kimi Code. Invocation syntax differs, but the deli
 
 1. Read repository instructions and inspect the current worktree before writing delivery metadata.
 2. Locate state using the Runtime And Paths rules. If `STATE.json` exists, read the manifest, state, progress, blocks, and current stage artifacts. Resume `next_action`; do not restart without evidence that upstream work is invalid.
-3. If no state exists, classify project context, mode, and quality profile using [project-modes.md](references/project-modes.md), agree or explicitly default the autonomy contract, then run `<SKILL_DIR>/scripts/init_delivery_state.py` with the project root, name, context, mode, quality, and objective.
+3. If no state exists, classify project context, mode, quality profile, and whether a human-facing interface is in scope using [project-modes.md](references/project-modes.md), agree or explicitly default the autonomy contract, then run `<SKILL_DIR>/scripts/init_delivery_state.py` with the project root, name, context, mode, quality, objective, and `--interface-scope in-scope|out-of-scope`. Use `undetermined` only while G0 remains pending.
 4. Read [lifecycle-and-gates.md](references/lifecycle-and-gates.md) and only the references required for the current stage.
 5. Validate state after each gate or transition with `<SKILL_DIR>/scripts/validate_state.py --project-root <project-root>`.
 
@@ -42,15 +42,17 @@ Do not create delivery metadata for advice, review, explanation, or diagnosis-on
 |---|---|
 | `S0_INTAKE` | [project-modes.md](references/project-modes.md), [autonomy-and-stop-policy.md](references/autonomy-and-stop-policy.md), [enterprise-quality-profiles.md](references/enterprise-quality-profiles.md) |
 | `S1_DISCOVERY` | [discovery-analysis.md](references/discovery-analysis.md); for `brownfield`, also [brownfield-onboarding.md](references/brownfield-onboarding.md) |
-| `S2_PRODUCT_DEFINITION` | [product-definition.md](references/product-definition.md) |
-| `S3_SOLUTION_DESIGN` | [product-ux-design.md](references/product-ux-design.md), [solution-architecture.md](references/solution-architecture.md) |
+| `S2_PRODUCT_DEFINITION` | [product-definition.md](references/product-definition.md); when an interface is in scope, also [business-ui-design.md](references/business-ui-design.md) |
+| `S3_SOLUTION_DESIGN` | [product-ux-design.md](references/product-ux-design.md), [solution-architecture.md](references/solution-architecture.md); when an interface is in scope, also [business-ui-design.md](references/business-ui-design.md) and, only when visual direction is unresolved, [visual-design-references.md](references/visual-design-references.md) |
 | `S4_DELIVERY_PLANNING` | [delivery-planning.md](references/delivery-planning.md) |
-| `S5_IMPLEMENTATION` | [implementation-loop.md](references/implementation-loop.md) |
-| `S6_INDEPENDENT_VERIFICATION` | [independent-verification.md](references/independent-verification.md) |
+| `S5_IMPLEMENTATION` | [implementation-loop.md](references/implementation-loop.md); when an interface is in scope, enforce the frozen `UI_CONTRACT.md` |
+| `S6_INDEPENDENT_VERIFICATION` | [independent-verification.md](references/independent-verification.md); when an interface is in scope, apply [business-ui-design.md](references/business-ui-design.md) and complete `UI_VERIFICATION.md` |
 | `S7_RELEASE_READINESS`, `S8_DELIVERY`, `S9_OUTCOME_REVIEW` | [release-and-outcomes.md](references/release-and-outcomes.md) |
 | `BLOCKED`, `REWORK`, `STOPPED` | [autonomy-and-stop-policy.md](references/autonomy-and-stop-policy.md), then the responsible stage reference |
 
 For a `brownfield` project, G1 cannot pass until the six takeover artifacts defined in [brownfield-onboarding.md](references/brownfield-onboarding.md) are evidence-backed and marked complete. A prior `$codebase-audit` report may supply evidence, but verify its repository revision, scope, and freshness before reuse.
+
+For schema V3 state, G0 cannot pass until `interface_scope` is explicitly `in-scope` or `out-of-scope`. When it is `in-scope`, G3 requires a complete `UI_CONTRACT.md`, and G6 requires a complete `UI_VERIFICATION.md`. Visual polish is not evidence of task usability.
 
 ## Execution Loop
 

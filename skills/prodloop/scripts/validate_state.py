@@ -18,7 +18,8 @@ GATE_VALUES = {"pending", "passed", "failed", "invalidated", "not_required"}
 MODES = {"greenfield", "feature", "workflow-change", "integration", "migration", "remediation"}
 PROFILES = {"Q0", "Q1", "Q2", "Q3"}
 CONTEXTS = {"greenfield", "brownfield"}
-SCHEMA_VERSIONS = {1, 2}
+INTERFACE_SCOPES = {"undetermined", "in-scope", "out-of-scope"}
+SCHEMA_VERSIONS = {1, 2, 3}
 DEFAULT_STATE_DIR = ".prodloop"
 LEGACY_STATE_DIR = ".codex/delivery"
 BROWNFIELD_ARTIFACTS = [
@@ -81,7 +82,7 @@ def main() -> int:
     if schema_version not in SCHEMA_VERSIONS:
         errors.append(f"schema_version must be one of {sorted(SCHEMA_VERSIONS)}")
     context = state.get("project_context")
-    if schema_version == 2 and context not in CONTEXTS:
+    if schema_version in {2, 3} and context not in CONTEXTS:
         errors.append("project_context is invalid")
     if state.get("project_mode") not in MODES:
         errors.append("project_mode is invalid")
@@ -102,6 +103,13 @@ def main() -> int:
         elif gates[gate] not in GATE_VALUES:
             errors.append(f"Invalid status for {gate}: {gates[gate]}")
 
+    interface_scope = state.get("interface_scope")
+    if schema_version == 3:
+        if interface_scope not in INTERFACE_SCOPES:
+            errors.append("interface_scope is invalid")
+        elif gates.get("G0") == "passed" and interface_scope == "undetermined":
+            errors.append("G0 passed but interface_scope is undetermined")
+
     if stage in STAGES:
         for index in range(min(STAGES.index(stage), 9)):
             gate = f"G{index}"
@@ -116,13 +124,27 @@ def main() -> int:
         if not (delivery / filename).is_file():
             errors.append(f"Missing {filename}")
 
-    if schema_version == 2 and context == "brownfield":
+    if schema_version in {2, 3} and context == "brownfield":
         for filename in BROWNFIELD_ARTIFACTS:
             artifact = delivery / filename
             if not artifact.is_file():
                 errors.append(f"Missing brownfield artifact: {filename}")
             elif gates.get("G1") == "passed" and "Status: complete" not in artifact.read_text(encoding="utf-8"):
                 errors.append(f"G1 passed but brownfield artifact is incomplete: {filename}")
+
+    if schema_version == 3:
+        for filename in ["UI_CONTRACT.md", "UI_VERIFICATION.md"]:
+            if not (delivery / filename).is_file():
+                errors.append(f"Missing {filename}")
+        if interface_scope == "in-scope":
+            ui_contract = delivery / "UI_CONTRACT.md"
+            ui_verification = delivery / "UI_VERIFICATION.md"
+            if gates.get("G3") == "passed" and ui_contract.is_file():
+                if "Status: complete" not in ui_contract.read_text(encoding="utf-8"):
+                    errors.append("G3 passed but UI_CONTRACT.md is incomplete")
+            if gates.get("G6") == "passed" and ui_verification.is_file():
+                if "Status: complete" not in ui_verification.read_text(encoding="utf-8"):
+                    errors.append("G6 passed but UI_VERIFICATION.md is incomplete")
 
     result = {"valid": not errors, "state_dir": str(delivery), "stage": stage, "errors": errors}
     print(json.dumps(result, ensure_ascii=False, indent=2))

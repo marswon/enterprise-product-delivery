@@ -6,6 +6,8 @@
 
 > V0.3 兼容说明：为支持 Codex 与 Kimi Code 共用，当前实现默认使用 `.prodloop/`，并自动识别 V0.1 的 `.codex/delivery/`。V0.3 进一步区分 `greenfield` 与 `brownfield` 项目上下文，并为老项目增加接管门禁。本文件其余 `.codex/delivery/` 内容保留为 V0.1 历史规格，不应覆盖当前实现约定。
 
+> V0.4 兼容说明：当前实现进一步要求在 G0 前明确 `interface_scope`。界面在范围内时，G3 必须完成 `UI_CONTRACT.md`，G6 必须完成 `UI_VERIFICATION.md`；业务 UI 模式、视觉参考和真实浏览器验收的当前规则以 Skill references 为准。
+
 ## 1. 目标
 
 建立一套可复用于新产品、已有系统功能开发、企业流程改造、系统集成和迁移项目的 AI 产品交付系统，使 AI 能够在已授权边界内，从模糊目标开始，连续完成：

@@ -12,6 +12,7 @@ from pathlib import Path
 MODES = {"greenfield", "feature", "workflow-change", "integration", "migration", "remediation"}
 PROFILES = {"Q0", "Q1", "Q2", "Q3"}
 CONTEXTS = {"greenfield", "brownfield"}
+INTERFACE_SCOPES = {"undetermined", "in-scope", "out-of-scope"}
 DEFAULT_STATE_DIR = ".prodloop"
 LEGACY_STATE_DIR = ".codex/delivery"
 BROWNFIELD_ARTIFACTS = {
@@ -37,6 +38,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--mode", choices=sorted(MODES), required=True)
     parser.add_argument("--quality", choices=sorted(PROFILES), required=True)
     parser.add_argument("--objective", required=True)
+    parser.add_argument(
+        "--interface-scope",
+        choices=sorted(INTERFACE_SCOPES),
+        default="undetermined",
+        help="Whether this delivery adds or changes a human-facing interface",
+    )
     parser.add_argument(
         "--state-dir",
         help=f"State directory relative to project root or absolute path (default: {DEFAULT_STATE_DIR})",
@@ -82,7 +89,7 @@ def main() -> int:
     now = datetime.now(timezone.utc).isoformat()
     context = args.context or ("greenfield" if args.mode == "greenfield" else "brownfield")
     quote = lambda value: json.dumps(value, ensure_ascii=False)
-    manifest = f"""schema_version: 2
+    manifest = f"""schema_version: 3
 project:
   name: {quote(args.name)}
   context: {quote(context)}
@@ -92,6 +99,10 @@ project:
   target_users: []
   in_scope: []
   out_of_scope: []
+experience:
+  interface_scope: {quote(args.interface_scope)}
+  primary_component_system: ""
+  visual_references: []
 autonomy:
   reversible_product_decisions: allowed
   reversible_technical_decisions: allowed
@@ -108,10 +119,11 @@ budgets:
 required_gates: [G0, G1, G2, G3, G4, G5, G6, G7, G8]
 """
     state = {
-        "schema_version": 2,
+        "schema_version": 3,
         "project_context": context,
         "project_mode": args.mode,
         "quality_profile": args.quality,
+        "interface_scope": args.interface_scope,
         "current_stage": "S0_INTAKE",
         "gate_status": {f"G{i}": "pending" for i in range(9)},
         "active_slice": None,
@@ -135,6 +147,29 @@ required_gates: [G0, G1, G2, G3, G4, G5, G6, G7, G8]
     write_new(delivery / "PROGRESS.md", f"# Progress\n\n- {now}: Delivery state initialized at S0.\n")
     write_new(delivery / "BLOCKED.md", "# Blocked\n\nNo blocked items.\n")
     write_new(delivery / "TRACEABILITY.md", "# Traceability\n\n| ID | Outcome | Product Rule | Design | Implementation | Positive Test | Negative Test | Evidence | Status |\n|---|---|---|---|---|---|---|---|---|\n")
+    ui_status = "not_required" if args.interface_scope == "out-of-scope" else "pending"
+    write_new(
+        delivery / "UI_CONTRACT.md",
+        "# UI Contract\n\n"
+        f"Status: {ui_status}\n\n"
+        "## Context And Critical Tasks\n\n"
+        "## Information Architecture And Business Patterns\n\n"
+        "## States, Permissions, And Recovery\n\n"
+        "## Tables, Forms, And Data Density\n\n"
+        "## Responsive And Accessibility Constraints\n\n"
+        "## Component System And Visual Direction\n\n"
+        "## Representative Fixtures And Verification Plan\n",
+    )
+    write_new(
+        delivery / "UI_VERIFICATION.md",
+        "# UI Verification\n\n"
+        f"Status: {ui_status}\n\n"
+        "## Candidate, Environment, And Checker\n\n"
+        "## Task And State Evidence\n\n"
+        "## Viewports, Input, And Accessibility Evidence\n\n"
+        "## Visual Consistency And Data Density Evidence\n\n"
+        "## Blocking Defects, Accepted Risks, And Unverified Areas\n",
+    )
     if context == "brownfield":
         for filename, heading in BROWNFIELD_ARTIFACTS.items():
             write_new(delivery / filename, f"{heading}\n\nStatus: pending\n")

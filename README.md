@@ -1,6 +1,6 @@
 # enterprise-product-delivery
 
-面向 Codex / Kimi Code 的两项配套能力：`prodloop` 负责企业级软件产品端到端交付，`codebase-audit` 负责对已有代码库进行轻量、只读、证据化的接管审计。
+面向 Codex / Kimi Code 的两项配套能力：`prodloop` 负责企业级软件产品端到端交付，`codebase-audit` 负责对已有代码库进行轻量、只读、证据化的接管审计。`prodloop V0.4` 已内置企业业务 UI 设计与验收模块，不需要额外调用另一个 Skill。
 
 ## Skills
 
@@ -102,6 +102,30 @@ Kimi Code 输入：
 
 已有项目会进入 `brownfield` 接管分支。在 G1 之前必须完成真实运行基线、系统地图、行为契约、变更影响、回归范围和技术债边界；不会把老项目当作新项目重做。
 
+### 让 prodloop 处理业务 UI
+
+调用方式不变，只需在目标中写明用户、业务场景和界面范围。例如：
+
+```text
+$prodloop
+
+接管这个 CRM 的客户详情与跟进流程，从现状调查一直做到可发布候选。
+主要用户是销售和销售主管，桌面端高频使用，移动端用于现场快速记录。
+需要重新设计本次范围内的界面，但不要改动其他模块或替换现有前端技术栈。
+界面必须覆盖长客户名称、无数据、加载失败、权限不足、编辑冲突和提交重试。
+质量档位：Q2。
+```
+
+Kimi Code 将第一行改为 `/skill:prodloop` 即可。Skill 会自动：
+
+1. 判断界面是否在本次范围内；
+2. 根据 CRM、ERP、审批、数据控制台、工业运维等场景选择业务交互参考；
+3. 优先复用项目现有组件系统，并冻结 `.prodloop/UI_CONTRACT.md`；
+4. 将视觉参考转成项目自己的规则，不直接模仿 Linear、Notion 等品牌；
+5. 在 G6 使用真实业务数据、角色、异常状态和多个视口完成浏览器验收，并记录 `.prodloop/UI_VERIFICATION.md`。
+
+可选地提供喜欢或不喜欢的参考产品；没有参考时，Skill 会根据业务任务和现有技术栈选择可逆默认值。不要只输入“做得高级一点”或“照着某网站做”，这不能定义业务可用性。
+
 ## 使用 codebase-audit
 
 Codex 输入 `$codebase-audit`，Kimi Code 输入 `/skill:codebase-audit`。例如：
@@ -121,7 +145,7 @@ Codex 输入 `$codebase-audit`，Kimi Code 输入 `/skill:codebase-audit`。例�
 
 ## 当前状态
 
-V0.3 已加入 brownfield 老项目接管门禁和轻量只读 `codebase-audit`。新旧状态兼容、接管产物约束、门禁顺序和追溯检查均有自动化测试。尚未完成三个真实仓库前向测试，因此不声称已经证明能够高质量交付任意企业产品。
+V0.4 已加入企业业务 UI 模式路由、项目级 UI 合同和独立 UI 验收门禁。状态 schema V3 继续兼容 V1/V2；brownfield 接管、门禁顺序、界面范围和 UI 证据约束均有自动化测试。尚未完成三个真实仓库前向测试，因此不声称已经证明能够高质量交付任意企业产品。
 
 详细文档：
 
@@ -129,3 +153,4 @@ V0.3 已加入 brownfield 老项目接管门禁和轻量只读 `codebase-audit`�
 - [V0.1 验证报告](docs/prodloop-V0.1-验证报告.md)
 - [V0.2 验证报告](docs/prodloop-V0.2-验证报告.md)
 - [V0.3 验证报告](docs/prodloop-V0.3-验证报告.md)
+- [V0.4 验证报告](docs/prodloop-V0.4-验证报告.md)
