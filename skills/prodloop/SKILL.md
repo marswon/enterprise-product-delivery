@@ -29,7 +29,7 @@ This Skill supports Codex and Kimi Code. Invocation syntax differs, but the deli
 ## Start Or Resume
 
 1. Read repository instructions and inspect the current worktree before writing delivery metadata.
-2. Locate state using the Runtime And Paths rules. If `STATE.json` exists, read the manifest, state, progress, blocks, and current stage artifacts. Resume `next_action`; do not restart without evidence that upstream work is invalid.
+2. Locate state using the Runtime And Paths rules. If `STATE.json` exists, read the manifest, state, progress, blocks, and current stage artifacts. Resume `next_action`; do not restart without evidence that upstream work is invalid. If this delivery includes interface work and legacy state lacks `interface_scope`, run `<SKILL_DIR>/scripts/enable_ui_delivery.py --project-root <project-root> --interface-scope in-scope` before advancing a gate; it preserves backups and does not overwrite existing UI artifacts.
 3. If no state exists, classify project context, mode, quality profile, and whether a human-facing interface is in scope using [project-modes.md](references/project-modes.md), agree or explicitly default the autonomy contract, then run `<SKILL_DIR>/scripts/init_delivery_state.py` with the project root, name, context, mode, quality, objective, and `--interface-scope in-scope|out-of-scope`. Use `undetermined` only while G0 remains pending.
 4. Read [lifecycle-and-gates.md](references/lifecycle-and-gates.md) and only the references required for the current stage.
 5. Validate state after each gate or transition with `<SKILL_DIR>/scripts/validate_state.py --project-root <project-root>`.

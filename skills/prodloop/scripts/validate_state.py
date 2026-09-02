@@ -103,8 +103,9 @@ def main() -> int:
         elif gates[gate] not in GATE_VALUES:
             errors.append(f"Invalid status for {gate}: {gates[gate]}")
 
+    has_interface_scope = "interface_scope" in state
     interface_scope = state.get("interface_scope")
-    if schema_version == 3:
+    if schema_version == 3 or has_interface_scope:
         if interface_scope not in INTERFACE_SCOPES:
             errors.append("interface_scope is invalid")
         elif gates.get("G0") == "passed" and interface_scope == "undetermined":
@@ -132,7 +133,7 @@ def main() -> int:
             elif gates.get("G1") == "passed" and "Status: complete" not in artifact.read_text(encoding="utf-8"):
                 errors.append(f"G1 passed but brownfield artifact is incomplete: {filename}")
 
-    if schema_version == 3:
+    if schema_version == 3 or has_interface_scope:
         for filename in ["UI_CONTRACT.md", "UI_VERIFICATION.md"]:
             if not (delivery / filename).is_file():
                 errors.append(f"Missing {filename}")

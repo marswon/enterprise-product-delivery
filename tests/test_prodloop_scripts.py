@@ -126,6 +126,48 @@ class ProdloopScriptTests(unittest.TestCase):
             validation = run_script("validate_state.py", "--project-root", str(project))
             self.assertEqual(validation.returncode, 0, validation.stdout + validation.stderr)
 
+    def test_legacy_state_can_enable_ui_gates_without_overwrite(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp)
+            self.assertEqual(initialize(project).returncode, 0)
+            delivery = project / ".prodloop"
+            state_path = delivery / "STATE.json"
+            state = json.loads(state_path.read_text())
+            state["schema_version"] = 2
+            state.pop("interface_scope")
+            state_path.write_text(json.dumps(state), encoding="utf-8")
+            (delivery / "UI_CONTRACT.md").unlink()
+            (delivery / "UI_VERIFICATION.md").unlink()
+            manifest_path = delivery / "DELIVERY_MANIFEST.yaml"
+            manifest = manifest_path.read_text()
+            before_experience, after_experience = manifest.split("experience:\n", 1)
+            _, after_autonomy = after_experience.split("autonomy:\n", 1)
+            manifest_path.write_text(before_experience + "autonomy:\n" + after_autonomy)
+
+            enabled = run_script(
+                "enable_ui_delivery.py",
+                "--project-root", str(project),
+                "--interface-scope", "in-scope",
+            )
+            self.assertEqual(enabled.returncode, 0, enabled.stdout + enabled.stderr)
+            upgraded = json.loads(state_path.read_text())
+            self.assertEqual(upgraded["schema_version"], 2)
+            self.assertEqual(upgraded["interface_scope"], "in-scope")
+            self.assertTrue((delivery / "STATE.before-ui-enable.json").is_file())
+            self.assertTrue((delivery / "DELIVERY_MANIFEST.before-ui-enable.yaml").is_file())
+            self.assertIn('interface_scope: "in-scope"', manifest_path.read_text())
+            contract = delivery / "UI_CONTRACT.md"
+            self.assertIn("## Information Architecture", contract.read_text())
+
+            contract.write_text(contract.read_text() + "\nPreserve this content.\n")
+            enabled_again = run_script(
+                "enable_ui_delivery.py",
+                "--project-root", str(project),
+                "--interface-scope", "in-scope",
+            )
+            self.assertEqual(enabled_again.returncode, 0, enabled_again.stdout + enabled_again.stderr)
+            self.assertIn("Preserve this content.", contract.read_text())
+
     def test_g0_requires_explicit_interface_scope_for_v3(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             project = Path(tmp)
