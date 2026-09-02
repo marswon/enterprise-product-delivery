@@ -18,7 +18,7 @@
 
 1. 登录有权访问本仓库的 GitHub 账号。
 2. 下载仓库 ZIP 并解压。
-3. 确保最终目录为：
+3. 将仓库中的 `skills/enterprise-product-delivery` 文件夹复制到 Codex skills 目录，确保最终目录为：
 
 ```text
 ~/.codex/skills/enterprise-product-delivery/SKILL.md
@@ -28,16 +28,16 @@
 
 ### 方法二：通过 GitHub 安装
 
-目标电脑需要已有 GitHub 私有仓库访问权限。运行：
+目标电脑需要先安装 Git，并通过 `gh auth login` 或 Git 凭证取得本私有仓库访问权限。运行：
 
 ```bash
 python3 ~/.codex/skills/.system/skill-installer/scripts/install-skill-from-github.py \
   --repo marswon/enterprise-product-delivery \
-  --path . \
-  --name enterprise-product-delivery
+  --path skills/enterprise-product-delivery \
+  --method git
 ```
 
-安装器发现目标目录已存在时会停止，不会自动覆盖旧版本。
+这里明确使用 Git 克隆路径，避免部分 Python 环境缺少 HTTPS 下载支持。安装器发现目标目录已存在时会停止，不会自动覆盖旧版本。
 
 ## 使用
 
