@@ -18,10 +18,10 @@
 
 1. 登录有权访问本仓库的 GitHub 账号。
 2. 下载仓库 ZIP 并解压。
-3. 将仓库中的 `skills/enterprise-product-delivery` 文件夹复制到 Codex skills 目录，确保最终目录为：
+3. 将仓库中的 `skills/prodloop` 文件夹复制到 Codex skills 目录，确保最终目录为：
 
 ```text
-~/.codex/skills/enterprise-product-delivery/SKILL.md
+~/.codex/skills/prodloop/SKILL.md
 ```
 
 4. 重启 Codex 或新建任务。
@@ -33,7 +33,7 @@
 ```bash
 python3 ~/.codex/skills/.system/skill-installer/scripts/install-skill-from-github.py \
   --repo marswon/enterprise-product-delivery \
-  --path skills/enterprise-product-delivery \
+  --path skills/prodloop \
   --method git
 ```
 
@@ -44,7 +44,7 @@ python3 ~/.codex/skills/.system/skill-installer/scripts/install-skill-from-githu
 在真实项目仓库的 Codex 任务中输入：
 
 ```text
-$enterprise-product-delivery
+$prodloop
 
 请接管这个产品功能，从现状调查开始，连续完成产品定义、交互设计、技术设计、交付规划、开发实现、独立验收和发布准备。
 
@@ -73,4 +73,4 @@ V0.1 已验证 Skill 结构、状态初始化、防覆盖、门禁顺序和追�
 详细文档：
 
 - [系统规格](docs/企业级AI自主产品交付系统规格-V0.1.md)
-- [V0.1 验证报告](docs/enterprise-product-delivery-V0.1-验证报告.md)
+- [V0.1 验证报告](docs/prodloop-V0.1-验证报告.md)

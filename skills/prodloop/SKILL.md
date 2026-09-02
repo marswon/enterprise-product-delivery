@@ -1,5 +1,5 @@
 ---
-name: enterprise-product-delivery
+name: prodloop
 description: Orchestrate evidence-backed software product delivery from discovery and product definition through UX and technical design, implementation, independent verification, release readiness, and outcome review. Use when the user asks AI to build or substantially change a product or enterprise system end to end, especially when quality, autonomy, resumability, or production readiness matter. Do not use for a narrow code fix with an already complete specification, advice-only product discussion, or a request that does not authorize implementation.
 ---
 

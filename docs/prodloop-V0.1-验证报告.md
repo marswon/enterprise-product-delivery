@@ -1,4 +1,4 @@
-# enterprise-product-delivery V0.1 验证报告
+# prodloop V0.1 验证报告
 
 验证日期：2026-09-02
 
@@ -6,10 +6,10 @@
 
 - Skill 包含 1 个总控入口、1 个 UI 元数据文件、12 个阶段参考文件和 3 个脚本，共 17 个文件。
 - `SKILL.md` frontmatter 已用独立 YAML 解析器验证，名称与描述有效，无未完成占位符。
-- `agents/openai.yaml` 已验证为合法 YAML；默认提示词明确引用 `$enterprise-product-delivery`；短描述为 27 个字符，满足 25-64 字符约束。
+- `agents/openai.yaml` 已验证为合法 YAML；默认提示词明确引用 `$prodloop`；短描述为 27 个字符，满足 25-64 字符约束。
 - `SKILL.md` 引用的所有参考文件均存在。
 - 三个 Python 脚本均通过语法编译。
-- Skill 已安装到 `/Users/wangzheng/.codex/skills/enterprise-product-delivery`，安装入口与交付包入口逐字一致。
+- Skill 安装目录为 `~/.codex/skills/prodloop`，安装入口与交付包入口应逐字一致。
 
 ## 行为测试
 

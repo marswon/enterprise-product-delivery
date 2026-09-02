@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate enterprise-product-delivery state and gate ordering."""
+"""Validate prodloop delivery state and gate ordering."""
 
 from __future__ import annotations
 

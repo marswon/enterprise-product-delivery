@@ -1,6 +1,6 @@
 # 企业级 AI 自主产品交付系统规格 V0.1
 
-> 工作名称：`enterprise-product-delivery`
+> Skill 名称：`prodloop`
 >
 > 文档性质：Skill 实现前的系统规格。它定义交付状态机、质量门禁、权限边界和证据协议，不代表 Skill 已经实现或任何产品已经完成开发。
 
@@ -464,7 +464,7 @@ S0 INTAKE
 ## 13. Skill 实现结构
 
 ```text
-enterprise-product-delivery/
+prodloop/
 ├── SKILL.md
 ├── agents/
 │   └── openai.yaml
