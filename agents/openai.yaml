@@ -1,0 +1,4 @@
+interface:
+  display_name: "企业级自主产品交付"
+  short_description: "从需求分析、产品设计到开发验收和发布准备的完整交付闭环"
+  default_prompt: "Use $enterprise-product-delivery to take this software product from a bounded objective through evidence-backed delivery."
