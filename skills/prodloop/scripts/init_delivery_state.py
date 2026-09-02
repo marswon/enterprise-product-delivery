@@ -11,8 +11,17 @@ from pathlib import Path
 
 MODES = {"greenfield", "feature", "workflow-change", "integration", "migration", "remediation"}
 PROFILES = {"Q0", "Q1", "Q2", "Q3"}
+CONTEXTS = {"greenfield", "brownfield"}
 DEFAULT_STATE_DIR = ".prodloop"
 LEGACY_STATE_DIR = ".codex/delivery"
+BROWNFIELD_ARTIFACTS = {
+    "CURRENT_SYSTEM_BASELINE.md": "# Current System Baseline",
+    "SYSTEM_MAP.md": "# System Map",
+    "BEHAVIOR_CONTRACT.md": "# Behavior Contract",
+    "CHANGE_IMPACT.md": "# Change Impact",
+    "REGRESSION_SCOPE.md": "# Regression Scope",
+    "TECH_DEBT_BOUNDARY.md": "# Tech Debt Boundary",
+}
 
 
 def write_new(path: Path, content: str) -> None:
@@ -24,6 +33,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--project-root", default=".")
     parser.add_argument("--name", required=True)
+    parser.add_argument("--context", choices=sorted(CONTEXTS))
     parser.add_argument("--mode", choices=sorted(MODES), required=True)
     parser.add_argument("--quality", choices=sorted(PROFILES), required=True)
     parser.add_argument("--objective", required=True)
@@ -70,10 +80,12 @@ def main() -> int:
     delivery.mkdir(parents=True, exist_ok=True)
     (delivery / "evidence").mkdir(exist_ok=True)
     now = datetime.now(timezone.utc).isoformat()
+    context = args.context or ("greenfield" if args.mode == "greenfield" else "brownfield")
     quote = lambda value: json.dumps(value, ensure_ascii=False)
-    manifest = f"""schema_version: 1
+    manifest = f"""schema_version: 2
 project:
   name: {quote(args.name)}
+  context: {quote(context)}
   mode: {quote(args.mode)}
   quality_profile: {quote(args.quality)}
   objective: {quote(args.objective)}
@@ -96,7 +108,8 @@ budgets:
 required_gates: [G0, G1, G2, G3, G4, G5, G6, G7, G8]
 """
     state = {
-        "schema_version": 1,
+        "schema_version": 2,
+        "project_context": context,
         "project_mode": args.mode,
         "quality_profile": args.quality,
         "current_stage": "S0_INTAKE",
@@ -106,7 +119,11 @@ required_gates: [G0, G1, G2, G3, G4, G5, G6, G7, G8]
         "failed_attempts": {},
         "invalidated_artifacts": [],
         "last_verified_at": None,
-        "next_action": "Complete the autonomy contract and G0 evidence",
+        "next_action": (
+            "Complete the autonomy contract and G0 evidence, then perform brownfield takeover"
+            if context == "brownfield"
+            else "Complete the autonomy contract and G0 evidence"
+        ),
         "created_at": now,
         "updated_at": now,
     }
@@ -118,6 +135,9 @@ required_gates: [G0, G1, G2, G3, G4, G5, G6, G7, G8]
     write_new(delivery / "PROGRESS.md", f"# Progress\n\n- {now}: Delivery state initialized at S0.\n")
     write_new(delivery / "BLOCKED.md", "# Blocked\n\nNo blocked items.\n")
     write_new(delivery / "TRACEABILITY.md", "# Traceability\n\n| ID | Outcome | Product Rule | Design | Implementation | Positive Test | Negative Test | Evidence | Status |\n|---|---|---|---|---|---|---|---|---|\n")
+    if context == "brownfield":
+        for filename, heading in BROWNFIELD_ARTIFACTS.items():
+            write_new(delivery / filename, f"{heading}\n\nStatus: pending\n")
     print(delivery)
     return 0
 

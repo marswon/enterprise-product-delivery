@@ -30,7 +30,7 @@ This Skill supports Codex and Kimi Code. Invocation syntax differs, but the deli
 
 1. Read repository instructions and inspect the current worktree before writing delivery metadata.
 2. Locate state using the Runtime And Paths rules. If `STATE.json` exists, read the manifest, state, progress, blocks, and current stage artifacts. Resume `next_action`; do not restart without evidence that upstream work is invalid.
-3. If no state exists, classify the project and quality profile using [project-modes.md](references/project-modes.md), agree or explicitly default the autonomy contract, then run `<SKILL_DIR>/scripts/init_delivery_state.py` with the project root, name, mode, quality, and objective.
+3. If no state exists, classify project context, mode, and quality profile using [project-modes.md](references/project-modes.md), agree or explicitly default the autonomy contract, then run `<SKILL_DIR>/scripts/init_delivery_state.py` with the project root, name, context, mode, quality, and objective.
 4. Read [lifecycle-and-gates.md](references/lifecycle-and-gates.md) and only the references required for the current stage.
 5. Validate state after each gate or transition with `<SKILL_DIR>/scripts/validate_state.py --project-root <project-root>`.
 
@@ -41,7 +41,7 @@ Do not create delivery metadata for advice, review, explanation, or diagnosis-on
 | State | Read and apply |
 |---|---|
 | `S0_INTAKE` | [project-modes.md](references/project-modes.md), [autonomy-and-stop-policy.md](references/autonomy-and-stop-policy.md), [enterprise-quality-profiles.md](references/enterprise-quality-profiles.md) |
-| `S1_DISCOVERY` | [discovery-analysis.md](references/discovery-analysis.md) |
+| `S1_DISCOVERY` | [discovery-analysis.md](references/discovery-analysis.md); for `brownfield`, also [brownfield-onboarding.md](references/brownfield-onboarding.md) |
 | `S2_PRODUCT_DEFINITION` | [product-definition.md](references/product-definition.md) |
 | `S3_SOLUTION_DESIGN` | [product-ux-design.md](references/product-ux-design.md), [solution-architecture.md](references/solution-architecture.md) |
 | `S4_DELIVERY_PLANNING` | [delivery-planning.md](references/delivery-planning.md) |
@@ -49,6 +49,8 @@ Do not create delivery metadata for advice, review, explanation, or diagnosis-on
 | `S6_INDEPENDENT_VERIFICATION` | [independent-verification.md](references/independent-verification.md) |
 | `S7_RELEASE_READINESS`, `S8_DELIVERY`, `S9_OUTCOME_REVIEW` | [release-and-outcomes.md](references/release-and-outcomes.md) |
 | `BLOCKED`, `REWORK`, `STOPPED` | [autonomy-and-stop-policy.md](references/autonomy-and-stop-policy.md), then the responsible stage reference |
+
+For a `brownfield` project, G1 cannot pass until the six takeover artifacts defined in [brownfield-onboarding.md](references/brownfield-onboarding.md) are evidence-backed and marked complete. A prior `$codebase-audit` report may supply evidence, but verify its repository revision, scope, and freshness before reuse.
 
 ## Execution Loop
 

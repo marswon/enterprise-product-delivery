@@ -1,0 +1,4 @@
+interface:
+  display_name: "代码库接管审计"
+  short_description: "只读还原已有系统架构、行为契约、运行基线和变更风险"
+  default_prompt: "Use $codebase-audit to inspect this existing repository and produce an evidence-backed takeover report without implementing changes."

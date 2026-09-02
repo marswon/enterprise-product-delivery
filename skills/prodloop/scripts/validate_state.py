@@ -17,8 +17,18 @@ SPECIAL_STAGES = {"BLOCKED", "REWORK", "STOPPED"}
 GATE_VALUES = {"pending", "passed", "failed", "invalidated", "not_required"}
 MODES = {"greenfield", "feature", "workflow-change", "integration", "migration", "remediation"}
 PROFILES = {"Q0", "Q1", "Q2", "Q3"}
+CONTEXTS = {"greenfield", "brownfield"}
+SCHEMA_VERSIONS = {1, 2}
 DEFAULT_STATE_DIR = ".prodloop"
 LEGACY_STATE_DIR = ".codex/delivery"
+BROWNFIELD_ARTIFACTS = [
+    "CURRENT_SYSTEM_BASELINE.md",
+    "SYSTEM_MAP.md",
+    "BEHAVIOR_CONTRACT.md",
+    "CHANGE_IMPACT.md",
+    "REGRESSION_SCOPE.md",
+    "TECH_DEBT_BOUNDARY.md",
+]
 
 
 def parse_args() -> argparse.Namespace:
@@ -67,8 +77,12 @@ def main() -> int:
         print(json.dumps({"valid": False, "errors": [f"Invalid STATE.json: {exc}"]}, ensure_ascii=False, indent=2))
         return 1
 
-    if state.get("schema_version") != 1:
-        errors.append("schema_version must be 1")
+    schema_version = state.get("schema_version")
+    if schema_version not in SCHEMA_VERSIONS:
+        errors.append(f"schema_version must be one of {sorted(SCHEMA_VERSIONS)}")
+    context = state.get("project_context")
+    if schema_version == 2 and context not in CONTEXTS:
+        errors.append("project_context is invalid")
     if state.get("project_mode") not in MODES:
         errors.append("project_mode is invalid")
     if state.get("quality_profile") not in PROFILES:
@@ -101,6 +115,14 @@ def main() -> int:
     for filename in ["ASSUMPTIONS.md", "DECISIONS.md", "PROGRESS.md", "BLOCKED.md", "TRACEABILITY.md"]:
         if not (delivery / filename).is_file():
             errors.append(f"Missing {filename}")
+
+    if schema_version == 2 and context == "brownfield":
+        for filename in BROWNFIELD_ARTIFACTS:
+            artifact = delivery / filename
+            if not artifact.is_file():
+                errors.append(f"Missing brownfield artifact: {filename}")
+            elif gates.get("G1") == "passed" and "Status: complete" not in artifact.read_text(encoding="utf-8"):
+                errors.append(f"G1 passed but brownfield artifact is incomplete: {filename}")
 
     result = {"valid": not errors, "state_dir": str(delivery), "stage": stage, "errors": errors}
     print(json.dumps(result, ensure_ascii=False, indent=2))

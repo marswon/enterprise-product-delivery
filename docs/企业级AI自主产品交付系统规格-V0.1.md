@@ -4,7 +4,7 @@
 >
 > 文档性质：Skill 实现前的系统规格。它定义交付状态机、质量门禁、权限边界和证据协议，不代表 Skill 已经实现或任何产品已经完成开发。
 
-> V0.2 兼容说明：为支持 Codex 与 Kimi Code 共用，当前实现对新项目默认使用 `.prodloop/`，并自动识别 V0.1 的 `.codex/delivery/`。本文件其余 `.codex/delivery/` 内容保留为 V0.1 历史规格，不应覆盖当前实现约定。
+> V0.3 兼容说明：为支持 Codex 与 Kimi Code 共用，当前实现默认使用 `.prodloop/`，并自动识别 V0.1 的 `.codex/delivery/`。V0.3 进一步区分 `greenfield` 与 `brownfield` 项目上下文，并为老项目增加接管门禁。本文件其余 `.codex/delivery/` 内容保留为 V0.1 历史规格，不应覆盖当前实现约定。
 
 ## 1. 目标
 

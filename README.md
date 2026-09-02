@@ -1,6 +1,11 @@
 # enterprise-product-delivery
 
-用于企业级软件产品端到端交付的 Codex / Kimi Code Skill。从调查分析、产品定义、产品与 UX 设计、技术设计开始，持续进入开发、独立验收、发布准备和结果复盘，并通过持久化状态、阶段门禁和证据追溯防止 AI 跳步或虚假完成。
+面向 Codex / Kimi Code 的两项配套能力：`prodloop` 负责企业级软件产品端到端交付，`codebase-audit` 负责对已有代码库进行轻量、只读、证据化的接管审计。
+
+## Skills
+
+- `prodloop`：从调查分析、产品定义、产品与 UX 设计、技术设计开始，持续进入开发、独立验收、发布准备和结果复盘。
+- `codebase-audit`：还原已有系统架构、真实运行基线、行为契约、变更影响和关键风险，不实施修复。
 
 ## 适用场景
 
@@ -19,7 +24,7 @@
 ```bash
 python3 ~/.codex/skills/.system/skill-installer/scripts/install-skill-from-github.py \
   --repo marswon/enterprise-product-delivery \
-  --path skills/prodloop \
+  --path skills/prodloop skills/codebase-audit \
   --dest ~/.agents/skills \
   --method git
 ```
@@ -30,10 +35,11 @@ python3 ~/.codex/skills/.system/skill-installer/scripts/install-skill-from-githu
 
 ### 只给 Codex 使用
 
-网页下载仓库 ZIP 后，将 `skills/prodloop` 复制为：
+网页下载仓库 ZIP 后，将需要的 Skill 目录复制为：
 
 ```text
 ~/.codex/skills/prodloop/SKILL.md
+~/.codex/skills/codebase-audit/SKILL.md
 ```
 
 也可以通过 GitHub 安装：
@@ -41,7 +47,7 @@ python3 ~/.codex/skills/.system/skill-installer/scripts/install-skill-from-githu
 ```bash
 python3 ~/.codex/skills/.system/skill-installer/scripts/install-skill-from-github.py \
   --repo marswon/enterprise-product-delivery \
-  --path skills/prodloop \
+  --path skills/prodloop skills/codebase-audit \
   --method git
 ```
 
@@ -52,6 +58,8 @@ Kimi Code 支持以下任一目录：
 ```text
 ~/.kimi-code/skills/prodloop/SKILL.md
 ~/.agents/skills/prodloop/SKILL.md
+~/.kimi-code/skills/codebase-audit/SKILL.md
+~/.agents/skills/codebase-audit/SKILL.md
 ```
 
 也可以不安装，直接从本仓库临时加载：
@@ -60,7 +68,7 @@ Kimi Code 支持以下任一目录：
 kimi --skills-dir /absolute/path/to/enterprise-product-delivery/skills
 ```
 
-## 使用
+## 使用 prodloop
 
 在真实项目仓库中启动对应 Agent。
 
@@ -92,6 +100,18 @@ Kimi Code 输入：
 
 新项目的持续状态保存在 `.prodloop/`。中断后再次调用 Skill，它会读取 `STATE.json` 和 `next_action` 继续。V0.1 已经创建的 `.codex/delivery/` 会被自动识别并原地继续；如果两个目录同时存在，Skill 会停止并要求确认权威状态，避免错误合并。
 
+已有项目会进入 `brownfield` 接管分支。在 G1 之前必须完成真实运行基线、系统地图、行为契约、变更影响、回归范围和技术债边界；不会把老项目当作新项目重做。
+
+## 使用 codebase-audit
+
+Codex 输入 `$codebase-audit`，Kimi Code 输入 `/skill:codebase-audit`。例如：
+
+```text
+请只读审计这个已有项目，重点回答它如何启动、核心业务流程如何穿过界面/逻辑/数据层、有哪些权限和兼容契约，以及修改目标模块会影响什么。不要改代码或安装依赖。
+```
+
+默认在对话中交付报告，不修改仓库。只有明确要求保存时才写 `CODEBASE_AUDIT.md`。审计报告可以交给 `prodloop` 复用，但必须核对版本、范围和时效，不能自动视为 G1 已通过。
+
 ## 质量档位
 
 - `Q0`：探索验证，不得冒充生产产品。
@@ -101,10 +121,11 @@ Kimi Code 输入：
 
 ## 当前状态
 
-V0.2 已完成 Codex / Kimi Code 双运行时兼容改造，并验证新状态目录、V0.1 旧状态恢复、冲突拒绝、门禁顺序和追溯检查。尚未完成三个真实仓库前向测试，因此不声称已经证明能够高质量交付任意企业产品。
+V0.3 已加入 brownfield 老项目接管门禁和轻量只读 `codebase-audit`。新旧状态兼容、接管产物约束、门禁顺序和追溯检查均有自动化测试。尚未完成三个真实仓库前向测试，因此不声称已经证明能够高质量交付任意企业产品。
 
 详细文档：
 
 - [系统规格](docs/企业级AI自主产品交付系统规格-V0.1.md)
 - [V0.1 验证报告](docs/prodloop-V0.1-验证报告.md)
 - [V0.2 验证报告](docs/prodloop-V0.2-验证报告.md)
+- [V0.3 验证报告](docs/prodloop-V0.3-验证报告.md)
