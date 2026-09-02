@@ -24,6 +24,6 @@ Maintain:
 
 `ID | Outcome | Product Rule | Design | Implementation | Positive Test | Negative Test | Evidence | Status`
 
-Avoid pipe characters inside cells. Run `scripts/check_traceability.py` before G4 and with `--require-complete` before delivery.
+Avoid pipe characters inside cells. Run `<SKILL_DIR>/scripts/check_traceability.py --project-root <project-root>` before G4 and add `--require-complete` before delivery. Resolve `SKILL_DIR` from the loaded Skill, not from the product repository.
 
 G4 passes when baseline evidence is real, slices are bounded, dependencies/owners are explicit, the judge is frozen, state is resumable, and every in-scope requirement has a row.

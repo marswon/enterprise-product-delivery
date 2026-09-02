@@ -11,6 +11,8 @@ from pathlib import Path
 
 MODES = {"greenfield", "feature", "workflow-change", "integration", "migration", "remediation"}
 PROFILES = {"Q0", "Q1", "Q2", "Q3"}
+DEFAULT_STATE_DIR = ".prodloop"
+LEGACY_STATE_DIR = ".codex/delivery"
 
 
 def write_new(path: Path, content: str) -> None:
@@ -25,7 +27,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--mode", choices=sorted(MODES), required=True)
     parser.add_argument("--quality", choices=sorted(PROFILES), required=True)
     parser.add_argument("--objective", required=True)
+    parser.add_argument(
+        "--state-dir",
+        help=f"State directory relative to project root or absolute path (default: {DEFAULT_STATE_DIR})",
+    )
     return parser.parse_args()
+
+
+def resolve_explicit_state_dir(root: Path, value: str) -> Path:
+    path = Path(value).expanduser()
+    return path.resolve() if path.is_absolute() else (root / path).resolve()
 
 
 def main() -> int:
@@ -36,11 +47,25 @@ def main() -> int:
     if root in {Path("/"), Path.home().resolve()}:
         raise SystemExit("Refusing to initialize a broad system directory")
 
-    delivery = root / ".codex" / "delivery"
+    default_delivery = root / DEFAULT_STATE_DIR
+    legacy_delivery = root / LEGACY_STATE_DIR
+    if args.state_dir:
+        delivery = resolve_explicit_state_dir(root, args.state_dir)
+    else:
+        delivery = default_delivery
+
+    try:
+        delivery.relative_to(root)
+    except ValueError:
+        raise SystemExit(f"State directory must be inside project root: {delivery}") from None
+
+    existing = {path for path in (default_delivery, legacy_delivery, delivery) if path.exists()}
+    if existing:
+        joined = ", ".join(str(path) for path in sorted(existing))
+        raise SystemExit(f"Delivery state already exists: {joined}")
+
     manifest_path = delivery / "DELIVERY_MANIFEST.yaml"
     state_path = delivery / "STATE.json"
-    if manifest_path.exists() or state_path.exists():
-        raise SystemExit(f"Delivery state already exists: {delivery}")
 
     delivery.mkdir(parents=True, exist_ok=True)
     (delivery / "evidence").mkdir(exist_ok=True)

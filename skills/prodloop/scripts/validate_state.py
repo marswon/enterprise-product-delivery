@@ -17,18 +17,41 @@ SPECIAL_STAGES = {"BLOCKED", "REWORK", "STOPPED"}
 GATE_VALUES = {"pending", "passed", "failed", "invalidated", "not_required"}
 MODES = {"greenfield", "feature", "workflow-change", "integration", "migration", "remediation"}
 PROFILES = {"Q0", "Q1", "Q2", "Q3"}
+DEFAULT_STATE_DIR = ".prodloop"
+LEGACY_STATE_DIR = ".codex/delivery"
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--project-root", default=".")
+    parser.add_argument("--state-dir", help="State directory relative to project root or absolute path")
     return parser.parse_args()
+
+
+def resolve_delivery_dir(root: Path, explicit: str | None) -> tuple[Path | None, list[str]]:
+    if explicit:
+        path = Path(explicit).expanduser()
+        delivery = path.resolve() if path.is_absolute() else (root / path).resolve()
+        try:
+            delivery.relative_to(root)
+        except ValueError:
+            return None, [f"State directory must be inside project root: {delivery}"]
+        return delivery, []
+
+    candidates = [root / DEFAULT_STATE_DIR, root / LEGACY_STATE_DIR]
+    existing = [path for path in candidates if path.exists()]
+    if len(existing) > 1:
+        return None, [f"Multiple delivery state directories exist: {', '.join(str(path) for path in existing)}"]
+    return (existing[0] if existing else candidates[0]), []
 
 
 def main() -> int:
     args = parse_args()
-    delivery = Path(args.project_root).resolve() / ".codex" / "delivery"
-    errors: list[str] = []
+    root = Path(args.project_root).resolve()
+    delivery, errors = resolve_delivery_dir(root, args.state_dir)
+    if delivery is None:
+        print(json.dumps({"valid": False, "errors": errors}, ensure_ascii=False, indent=2))
+        return 1
     state_path = delivery / "STATE.json"
     if not (delivery / "DELIVERY_MANIFEST.yaml").is_file():
         errors.append("Missing DELIVERY_MANIFEST.yaml")
@@ -79,7 +102,7 @@ def main() -> int:
         if not (delivery / filename).is_file():
             errors.append(f"Missing {filename}")
 
-    result = {"valid": not errors, "stage": stage, "errors": errors}
+    result = {"valid": not errors, "state_dir": str(delivery), "stage": stage, "errors": errors}
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0 if not errors else 1
 

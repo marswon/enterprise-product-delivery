@@ -10,6 +10,8 @@ from pathlib import Path
 
 EXPECTED = ["ID", "Outcome", "Product Rule", "Design", "Implementation", "Positive Test", "Negative Test", "Evidence", "Status"]
 STATUSES = {"planned", "in_progress", "verified", "blocked", "deferred", "out_of_scope"}
+DEFAULT_STATE_DIR = ".prodloop"
+LEGACY_STATE_DIR = ".codex/delivery"
 
 
 def cells(line: str) -> list[str]:
@@ -19,14 +21,36 @@ def cells(line: str) -> list[str]:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--project-root", default=".")
+    parser.add_argument("--state-dir", help="State directory relative to project root or absolute path")
     parser.add_argument("--require-complete", action="store_true")
     return parser.parse_args()
 
 
+def resolve_delivery_dir(root: Path, explicit: str | None) -> tuple[Path | None, list[str]]:
+    if explicit:
+        path = Path(explicit).expanduser()
+        delivery = path.resolve() if path.is_absolute() else (root / path).resolve()
+        try:
+            delivery.relative_to(root)
+        except ValueError:
+            return None, [f"State directory must be inside project root: {delivery}"]
+        return delivery, []
+
+    candidates = [root / DEFAULT_STATE_DIR, root / LEGACY_STATE_DIR]
+    existing = [path for path in candidates if path.exists()]
+    if len(existing) > 1:
+        return None, [f"Multiple delivery state directories exist: {', '.join(str(path) for path in existing)}"]
+    return (existing[0] if existing else candidates[0]), []
+
+
 def main() -> int:
     args = parse_args()
-    path = Path(args.project_root).resolve() / ".codex" / "delivery" / "TRACEABILITY.md"
-    errors: list[str] = []
+    root = Path(args.project_root).resolve()
+    delivery, errors = resolve_delivery_dir(root, args.state_dir)
+    if delivery is None:
+        print(json.dumps({"valid": False, "errors": errors}, ensure_ascii=False, indent=2))
+        return 1
+    path = delivery / "TRACEABILITY.md"
     if not path.is_file():
         print(json.dumps({"valid": False, "errors": [f"Missing {path}"]}, ensure_ascii=False, indent=2))
         return 1
@@ -65,7 +89,7 @@ def main() -> int:
     if args.require_complete and not rows:
         errors.append("Complete delivery requires at least one traceability row")
 
-    result = {"valid": not errors, "rows": len(rows), "errors": errors}
+    result = {"valid": not errors, "state_dir": str(delivery), "rows": len(rows), "errors": errors}
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0 if not errors else 1
 

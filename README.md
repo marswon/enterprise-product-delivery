@@ -1,6 +1,6 @@
 # enterprise-product-delivery
 
-用于企业级软件产品端到端交付的 Codex Skill。从调查分析、产品定义、产品与 UX 设计、技术设计开始，持续进入开发、独立验收、发布准备和结果复盘，并通过持久化状态、阶段门禁和证据追溯防止 AI 跳步或虚假完成。
+用于企业级软件产品端到端交付的 Codex / Kimi Code Skill。从调查分析、产品定义、产品与 UX 设计、技术设计开始，持续进入开发、独立验收、发布准备和结果复盘，并通过持久化状态、阶段门禁和证据追溯防止 AI 跳步或虚假完成。
 
 ## 适用场景
 
@@ -12,23 +12,31 @@
 
 不适用于只有几行改动且规格已经完整的小修复，也不应用于只要求建议、评审或解释而未授权实施的任务。
 
-## 安装
+## 推荐：Codex 与 Kimi 共用安装
 
-### 方法一：网页下载
+两者都会扫描 `~/.agents/skills/`。已安装 Codex 的电脑可直接运行：
 
-1. 登录有权访问本仓库的 GitHub 账号。
-2. 下载仓库 ZIP 并解压。
-3. 将仓库中的 `skills/prodloop` 文件夹复制到 Codex skills 目录，确保最终目录为：
+```bash
+python3 ~/.codex/skills/.system/skill-installer/scripts/install-skill-from-github.py \
+  --repo marswon/enterprise-product-delivery \
+  --path skills/prodloop \
+  --dest ~/.agents/skills \
+  --method git
+```
+
+仓库是私有仓库，电脑需要先通过 `gh auth login` 或 Git 凭证取得访问权限。安装器发现目标目录已存在时会停止，不会覆盖旧版本。安装或更新后请新建任务或重启客户端。
+
+## 分别安装
+
+### 只给 Codex 使用
+
+网页下载仓库 ZIP 后，将 `skills/prodloop` 复制为：
 
 ```text
 ~/.codex/skills/prodloop/SKILL.md
 ```
 
-4. 重启 Codex 或新建任务。
-
-### 方法二：通过 GitHub 安装
-
-目标电脑需要先安装 Git，并通过 `gh auth login` 或 Git 凭证取得本私有仓库访问权限。运行：
+也可以通过 GitHub 安装：
 
 ```bash
 python3 ~/.codex/skills/.system/skill-installer/scripts/install-skill-from-github.py \
@@ -37,15 +45,40 @@ python3 ~/.codex/skills/.system/skill-installer/scripts/install-skill-from-githu
   --method git
 ```
 
-这里明确使用 Git 克隆路径，避免部分 Python 环境缺少 HTTPS 下载支持。安装器发现目标目录已存在时会停止，不会自动覆盖旧版本。
+### 只给 Kimi Code 使用
+
+Kimi Code 支持以下任一目录：
+
+```text
+~/.kimi-code/skills/prodloop/SKILL.md
+~/.agents/skills/prodloop/SKILL.md
+```
+
+也可以不安装，直接从本仓库临时加载：
+
+```bash
+kimi --skills-dir /absolute/path/to/enterprise-product-delivery/skills
+```
 
 ## 使用
 
-在真实项目仓库的 Codex 任务中输入：
+在真实项目仓库中启动对应 Agent。
+
+Codex 输入：
 
 ```text
 $prodloop
+```
 
+Kimi Code 输入：
+
+```text
+/skill:prodloop
+```
+
+然后提供完整目标，例如：
+
+```text
 请接管这个产品功能，从现状调查开始，连续完成产品定义、交互设计、技术设计、交付规划、开发实现、独立验收和发布准备。
 
 项目目标：[希望用户最终完成什么]
@@ -57,7 +90,7 @@ $prodloop
 不要只交付方案。门禁通过后继续实施，直到 G8 或明确的 BLOCKED/STOPPED 条件。
 ```
 
-中断后再次调用 Skill，它会读取项目的 `.codex/delivery/STATE.json` 和 `next_action` 继续。
+新项目的持续状态保存在 `.prodloop/`。中断后再次调用 Skill，它会读取 `STATE.json` 和 `next_action` 继续。V0.1 已经创建的 `.codex/delivery/` 会被自动识别并原地继续；如果两个目录同时存在，Skill 会停止并要求确认权威状态，避免错误合并。
 
 ## 质量档位
 
@@ -68,9 +101,10 @@ $prodloop
 
 ## 当前状态
 
-V0.1 已验证 Skill 结构、状态初始化、防覆盖、门禁顺序和追溯检查。尚未完成三个真实仓库前向测试，因此不声称已经证明能够高质量交付任意企业产品。
+V0.2 已完成 Codex / Kimi Code 双运行时兼容改造，并验证新状态目录、V0.1 旧状态恢复、冲突拒绝、门禁顺序和追溯检查。尚未完成三个真实仓库前向测试，因此不声称已经证明能够高质量交付任意企业产品。
 
 详细文档：
 
 - [系统规格](docs/企业级AI自主产品交付系统规格-V0.1.md)
 - [V0.1 验证报告](docs/prodloop-V0.1-验证报告.md)
+- [V0.2 验证报告](docs/prodloop-V0.2-验证报告.md)

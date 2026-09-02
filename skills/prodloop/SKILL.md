@@ -7,6 +7,15 @@ description: Orchestrate evidence-backed software product delivery from discover
 
 Deliver the right product, not merely finished code. Treat the work as a gated state machine with persistent evidence outside the conversation.
 
+## Runtime And Paths
+
+This Skill supports Codex and Kimi Code. Invocation syntax differs, but the delivery lifecycle is the same.
+
+1. Resolve `SKILL_DIR` as the absolute directory containing this loaded `SKILL.md`. Kimi Code may expose `${KIMI_SKILL_DIR}`; other runtimes may provide the loaded Skill path directly. Do not resolve `references/` or `scripts/` from the product repository.
+2. Run every bundled helper as `python3 "<SKILL_DIR>/scripts/<script>.py" ...`, replacing `<SKILL_DIR>` with the resolved absolute path.
+3. New projects store state in `<project-root>/.prodloop/`.
+4. For backward compatibility, if `.codex/delivery/` exists and `.prodloop/` does not, resume the legacy directory. If both exist, stop and ask which state is authoritative; never merge or choose silently.
+
 ## Non-Negotiable Invariants
 
 1. Separate facts, verified experience, assumptions, unknowns, and conflicts.
@@ -20,10 +29,10 @@ Deliver the right product, not merely finished code. Treat the work as a gated s
 ## Start Or Resume
 
 1. Read repository instructions and inspect the current worktree before writing delivery metadata.
-2. If `.codex/delivery/STATE.json` exists, read the manifest, state, progress, blocks, and current stage artifacts. Resume `next_action`; do not restart without evidence that upstream work is invalid.
-3. If no state exists, classify the project and quality profile using [project-modes.md](references/project-modes.md), agree or explicitly default the autonomy contract, then initialize with `scripts/init_delivery_state.py`.
+2. Locate state using the Runtime And Paths rules. If `STATE.json` exists, read the manifest, state, progress, blocks, and current stage artifacts. Resume `next_action`; do not restart without evidence that upstream work is invalid.
+3. If no state exists, classify the project and quality profile using [project-modes.md](references/project-modes.md), agree or explicitly default the autonomy contract, then run `<SKILL_DIR>/scripts/init_delivery_state.py` with the project root, name, mode, quality, and objective.
 4. Read [lifecycle-and-gates.md](references/lifecycle-and-gates.md) and only the references required for the current stage.
-5. Validate state after each gate or transition with `scripts/validate_state.py`.
+5. Validate state after each gate or transition with `<SKILL_DIR>/scripts/validate_state.py --project-root <project-root>`.
 
 Do not create delivery metadata for advice, review, explanation, or diagnosis-only requests. Those requests do not authorize implementation.
 
@@ -61,4 +70,4 @@ Use a separate agent or isolated read-only checking pass when available and auth
 
 Completion requires `G8` to pass. Production deployment is optional unless explicitly authorized; an evidence-backed deployable candidate may be the valid delivery. Outcome review occurs later when real usage evidence exists.
 
-Before reporting completion, validate state, run traceability checking in complete mode, distinguish completed/blocked/unverified/deferred work, and report actual verification plus anything that could not be verified.
+Before reporting completion, validate state, run `<SKILL_DIR>/scripts/check_traceability.py --project-root <project-root> --require-complete`, distinguish completed/blocked/unverified/deferred work, and report actual verification plus anything that could not be verified.
