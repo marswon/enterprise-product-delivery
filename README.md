@@ -29,7 +29,7 @@ python3 ~/.codex/skills/.system/skill-installer/scripts/install-skill-from-githu
   --method git
 ```
 
-仓库是私有仓库，电脑需要先通过 `gh auth login` 或 Git 凭证取得访问权限。安装器发现目标目录已存在时会停止，不会覆盖旧版本。安装或更新后请新建任务或重启客户端。
+仓库是公开仓库，无需 GitHub 登录即可安装。安装器发现目标目录已存在时会停止，不会覆盖旧版本。安装或更新后请新建任务或重启客户端。
 
 ## 分别安装
 
