@@ -27,6 +27,7 @@ def initialize(
     mode: str = "feature",
     context: str | None = None,
     interface_scope: str | None = None,
+    visualization_scope: str | None = None,
 ) -> subprocess.CompletedProcess[str]:
     args = [
         "--project-root", str(project),
@@ -41,6 +42,8 @@ def initialize(
         args.extend(["--context", context])
     if interface_scope:
         args.extend(["--interface-scope", interface_scope])
+    if visualization_scope:
+        args.extend(["--visualization-scope", visualization_scope])
     return run_script("init_delivery_state.py", *args)
 
 
@@ -53,11 +56,14 @@ class ProdloopScriptTests(unittest.TestCase):
             self.assertTrue((project / ".prodloop" / "STATE.json").is_file())
             self.assertFalse((project / ".codex" / "delivery").exists())
             state = json.loads((project / ".prodloop" / "STATE.json").read_text())
-            self.assertEqual(state["schema_version"], 3)
+            self.assertEqual(state["schema_version"], 4)
             self.assertEqual(state["project_context"], "brownfield")
             self.assertEqual(state["interface_scope"], "undetermined")
+            self.assertEqual(state["visualization_scope"], "undetermined")
             self.assertTrue((project / ".prodloop" / "UI_CONTRACT.md").is_file())
             self.assertTrue((project / ".prodloop" / "UI_VERIFICATION.md").is_file())
+            self.assertTrue((project / ".prodloop" / "DATA_VIS_CONTRACT.md").is_file())
+            self.assertTrue((project / ".prodloop" / "DATA_VIS_VERIFICATION.md").is_file())
 
             validation = run_script("validate_state.py", "--project-root", str(project))
             self.assertEqual(validation.returncode, 0, validation.stdout + validation.stderr)
@@ -84,6 +90,7 @@ class ProdloopScriptTests(unittest.TestCase):
             state["gate_status"]["G0"] = "passed"
             state["gate_status"]["G1"] = "passed"
             state["interface_scope"] = "out-of-scope"
+            state["visualization_scope"] = "out-of-scope"
             state["next_action"] = "Define the product delta"
             state_path.write_text(json.dumps(state), encoding="utf-8")
 
@@ -108,7 +115,16 @@ class ProdloopScriptTests(unittest.TestCase):
             state = json.loads(state_path.read_text())
             state["schema_version"] = 1
             state.pop("project_context")
+            state.pop("interface_scope")
+            state.pop("visualization_scope")
             state_path.write_text(json.dumps(state), encoding="utf-8")
+            for filename in [
+                "UI_CONTRACT.md",
+                "UI_VERIFICATION.md",
+                "DATA_VIS_CONTRACT.md",
+                "DATA_VIS_VERIFICATION.md",
+            ]:
+                (project / ".prodloop" / filename).unlink()
 
             validation = run_script("validate_state.py", "--project-root", str(project))
             self.assertEqual(validation.returncode, 0, validation.stdout + validation.stderr)
@@ -121,7 +137,31 @@ class ProdloopScriptTests(unittest.TestCase):
             state = json.loads(state_path.read_text())
             state["schema_version"] = 2
             state.pop("interface_scope")
+            state.pop("visualization_scope")
             state_path.write_text(json.dumps(state), encoding="utf-8")
+            for filename in [
+                "UI_CONTRACT.md",
+                "UI_VERIFICATION.md",
+                "DATA_VIS_CONTRACT.md",
+                "DATA_VIS_VERIFICATION.md",
+            ]:
+                (project / ".prodloop" / filename).unlink()
+
+            validation = run_script("validate_state.py", "--project-root", str(project))
+            self.assertEqual(validation.returncode, 0, validation.stdout + validation.stderr)
+
+    def test_v3_state_without_visualization_fields_remains_valid(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp)
+            self.assertEqual(initialize(project).returncode, 0)
+            delivery = project / ".prodloop"
+            state_path = delivery / "STATE.json"
+            state = json.loads(state_path.read_text())
+            state["schema_version"] = 3
+            state.pop("visualization_scope")
+            state_path.write_text(json.dumps(state), encoding="utf-8")
+            (delivery / "DATA_VIS_CONTRACT.md").unlink()
+            (delivery / "DATA_VIS_VERIFICATION.md").unlink()
 
             validation = run_script("validate_state.py", "--project-root", str(project))
             self.assertEqual(validation.returncode, 0, validation.stdout + validation.stderr)
@@ -168,7 +208,7 @@ class ProdloopScriptTests(unittest.TestCase):
             self.assertEqual(enabled_again.returncode, 0, enabled_again.stdout + enabled_again.stderr)
             self.assertIn("Preserve this content.", contract.read_text())
 
-    def test_g0_requires_explicit_interface_scope_for_v3(self) -> None:
+    def test_g0_requires_explicit_interface_and_visualization_scope_for_v4(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             project = Path(tmp)
             self.assertEqual(initialize(project, mode="greenfield").returncode, 0)
@@ -185,13 +225,24 @@ class ProdloopScriptTests(unittest.TestCase):
             state["interface_scope"] = "out-of-scope"
             state_path.write_text(json.dumps(state), encoding="utf-8")
             validation = run_script("validate_state.py", "--project-root", str(project))
+            self.assertNotEqual(validation.returncode, 0)
+            self.assertIn("visualization_scope is undetermined", validation.stdout)
+
+            state["visualization_scope"] = "out-of-scope"
+            state_path.write_text(json.dumps(state), encoding="utf-8")
+            validation = run_script("validate_state.py", "--project-root", str(project))
             self.assertEqual(validation.returncode, 0, validation.stdout + validation.stderr)
 
     def test_interface_gates_require_ui_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             project = Path(tmp)
             self.assertEqual(
-                initialize(project, mode="greenfield", interface_scope="in-scope").returncode,
+                initialize(
+                    project,
+                    mode="greenfield",
+                    interface_scope="in-scope",
+                    visualization_scope="out-of-scope",
+                ).returncode,
                 0,
             )
             delivery = project / ".prodloop"
@@ -223,6 +274,98 @@ class ProdloopScriptTests(unittest.TestCase):
             report.write_text(report.read_text().replace("Status: pending", "Status: complete"))
             validation = run_script("validate_state.py", "--project-root", str(project))
             self.assertEqual(validation.returncode, 0, validation.stdout + validation.stderr)
+
+    def test_visualization_gates_require_contract_and_verification(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp)
+            self.assertEqual(
+                initialize(
+                    project,
+                    mode="greenfield",
+                    interface_scope="in-scope",
+                    visualization_scope="in-scope",
+                ).returncode,
+                0,
+            )
+            delivery = project / ".prodloop"
+            state_path = delivery / "STATE.json"
+            state = json.loads(state_path.read_text())
+            state["current_stage"] = "S4_DELIVERY_PLANNING"
+            for index in range(4):
+                state["gate_status"][f"G{index}"] = "passed"
+            (delivery / "UI_CONTRACT.md").write_text(
+                (delivery / "UI_CONTRACT.md").read_text().replace("Status: pending", "Status: complete")
+            )
+            state_path.write_text(json.dumps(state), encoding="utf-8")
+
+            validation = run_script("validate_state.py", "--project-root", str(project))
+            self.assertNotEqual(validation.returncode, 0)
+            self.assertIn("DATA_VIS_CONTRACT.md is incomplete", validation.stdout)
+
+            contract = delivery / "DATA_VIS_CONTRACT.md"
+            contract.write_text(contract.read_text().replace("Status: pending", "Status: complete"))
+            validation = run_script("validate_state.py", "--project-root", str(project))
+            self.assertEqual(validation.returncode, 0, validation.stdout + validation.stderr)
+
+            state["current_stage"] = "S7_RELEASE_READINESS"
+            for index in range(7):
+                state["gate_status"][f"G{index}"] = "passed"
+            state_path.write_text(json.dumps(state), encoding="utf-8")
+            (delivery / "UI_VERIFICATION.md").write_text(
+                (delivery / "UI_VERIFICATION.md").read_text().replace("Status: pending", "Status: complete")
+            )
+            validation = run_script("validate_state.py", "--project-root", str(project))
+            self.assertNotEqual(validation.returncode, 0)
+            self.assertIn("DATA_VIS_VERIFICATION.md is incomplete", validation.stdout)
+
+            report = delivery / "DATA_VIS_VERIFICATION.md"
+            report.write_text(report.read_text().replace("Status: pending", "Status: complete"))
+            validation = run_script("validate_state.py", "--project-root", str(project))
+            self.assertEqual(validation.returncode, 0, validation.stdout + validation.stderr)
+
+    def test_legacy_state_can_enable_visualization_without_overwrite(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp)
+            self.assertEqual(
+                initialize(
+                    project,
+                    mode="greenfield",
+                    interface_scope="out-of-scope",
+                    visualization_scope="out-of-scope",
+                ).returncode,
+                0,
+            )
+            delivery = project / ".prodloop"
+            state_path = delivery / "STATE.json"
+            state = json.loads(state_path.read_text())
+            state["schema_version"] = 3
+            state.pop("visualization_scope")
+            state_path.write_text(json.dumps(state), encoding="utf-8")
+            (delivery / "DATA_VIS_CONTRACT.md").unlink()
+            (delivery / "DATA_VIS_VERIFICATION.md").unlink()
+
+            enabled = run_script(
+                "enable_data_visualization.py",
+                "--project-root", str(project),
+                "--visualization-scope", "in-scope",
+            )
+            self.assertEqual(enabled.returncode, 0, enabled.stdout + enabled.stderr)
+            upgraded = json.loads(state_path.read_text())
+            self.assertEqual(upgraded["schema_version"], 3)
+            self.assertEqual(upgraded["visualization_scope"], "in-scope")
+            self.assertTrue((delivery / "STATE.before-data-vis-enable.json").is_file())
+            self.assertTrue((delivery / "DELIVERY_MANIFEST.before-data-vis-enable.yaml").is_file())
+            self.assertIn('visualization_scope: "in-scope"', (delivery / "DELIVERY_MANIFEST.yaml").read_text())
+
+            contract = delivery / "DATA_VIS_CONTRACT.md"
+            contract.write_text(contract.read_text() + "\nPreserve this content.\n")
+            enabled_again = run_script(
+                "enable_data_visualization.py",
+                "--project-root", str(project),
+                "--visualization-scope", "in-scope",
+            )
+            self.assertEqual(enabled_again.returncode, 0, enabled_again.stdout + enabled_again.stderr)
+            self.assertIn("Preserve this content.", contract.read_text())
 
     def test_legacy_state_is_auto_detected(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

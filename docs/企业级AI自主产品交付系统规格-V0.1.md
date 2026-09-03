@@ -6,7 +6,7 @@
 
 > V0.3 兼容说明：为支持 Codex 与 Kimi Code 共用，当前实现默认使用 `.prodloop/`，并自动识别 V0.1 的 `.codex/delivery/`。V0.3 进一步区分 `greenfield` 与 `brownfield` 项目上下文，并为老项目增加接管门禁。本文件其余 `.codex/delivery/` 内容保留为 V0.1 历史规格，不应覆盖当前实现约定。
 
-> V0.4 兼容说明：当前实现进一步要求在 G0 前明确 `interface_scope`。界面在范围内时，G3 必须完成 `UI_CONTRACT.md`，G6 必须完成 `UI_VERIFICATION.md`；业务 UI 模式、视觉参考和真实浏览器验收的当前规则以 Skill references 为准。
+> V0.5 兼容说明：当前实现要求在 G0 前明确 `interface_scope` 和 `visualization_scope`。界面在范围内时，G3/G6 分别要求 `UI_CONTRACT.md` 和 `UI_VERIFICATION.md`；数据可视化在范围内时，G3/G6 分别要求 `DATA_VIS_CONTRACT.md` 和 `DATA_VIS_VERIFICATION.md`。当前规则以 Skill references 为准。
 
 ## 1. 目标
 

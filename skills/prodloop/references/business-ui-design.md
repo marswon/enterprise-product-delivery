@@ -52,6 +52,8 @@ When `interface_scope` is `in-scope`, maintain `.prodloop/UI_CONTRACT.md` as the
 - fixture matrix for realistic volume, long text, empty data, failures, roles, and edge conditions;
 - browser and task-based verification plan with viewports and evidence locations.
 
+When charts, analytical dashboards, maps, monitoring views, or generated visual reports are in scope, read [data-visualization-design.md](data-visualization-design.md). Keep metric and encoding decisions in `DATA_VIS_CONTRACT.md` rather than hiding them inside visual styling notes.
+
 Mark `Status: complete` only when implementers no longer need to invent consequential product behavior or visual rules. Unknown business meaning blocks the responsible product gate; an aesthetic preference may use a reversible default if the autonomy contract permits it.
 
 ## Business UI Guardrails

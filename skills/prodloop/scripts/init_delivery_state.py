@@ -13,6 +13,7 @@ MODES = {"greenfield", "feature", "workflow-change", "integration", "migration",
 PROFILES = {"Q0", "Q1", "Q2", "Q3"}
 CONTEXTS = {"greenfield", "brownfield"}
 INTERFACE_SCOPES = {"undetermined", "in-scope", "out-of-scope"}
+VISUALIZATION_SCOPES = {"undetermined", "in-scope", "out-of-scope"}
 DEFAULT_STATE_DIR = ".prodloop"
 LEGACY_STATE_DIR = ".codex/delivery"
 BROWNFIELD_ARTIFACTS = {
@@ -43,6 +44,12 @@ def parse_args() -> argparse.Namespace:
         choices=sorted(INTERFACE_SCOPES),
         default="undetermined",
         help="Whether this delivery adds or changes a human-facing interface",
+    )
+    parser.add_argument(
+        "--visualization-scope",
+        choices=sorted(VISUALIZATION_SCOPES),
+        default="undetermined",
+        help="Whether this delivery includes charts, analytical dashboards, maps, monitoring views, or visual reports",
     )
     parser.add_argument(
         "--state-dir",
@@ -89,7 +96,7 @@ def main() -> int:
     now = datetime.now(timezone.utc).isoformat()
     context = args.context or ("greenfield" if args.mode == "greenfield" else "brownfield")
     quote = lambda value: json.dumps(value, ensure_ascii=False)
-    manifest = f"""schema_version: 3
+    manifest = f"""schema_version: 4
 project:
   name: {quote(args.name)}
   context: {quote(context)}
@@ -101,6 +108,7 @@ project:
   out_of_scope: []
 experience:
   interface_scope: {quote(args.interface_scope)}
+  visualization_scope: {quote(args.visualization_scope)}
   primary_component_system: ""
   visual_references: []
 autonomy:
@@ -119,11 +127,12 @@ budgets:
 required_gates: [G0, G1, G2, G3, G4, G5, G6, G7, G8]
 """
     state = {
-        "schema_version": 3,
+        "schema_version": 4,
         "project_context": context,
         "project_mode": args.mode,
         "quality_profile": args.quality,
         "interface_scope": args.interface_scope,
+        "visualization_scope": args.visualization_scope,
         "current_stage": "S0_INTAKE",
         "gate_status": {f"G{i}": "pending" for i in range(9)},
         "active_slice": None,
@@ -168,6 +177,30 @@ required_gates: [G0, G1, G2, G3, G4, G5, G6, G7, G8]
         "## Task And State Evidence\n\n"
         "## Viewports, Input, And Accessibility Evidence\n\n"
         "## Visual Consistency And Data Density Evidence\n\n"
+        "## Blocking Defects, Accepted Risks, And Unverified Areas\n",
+    )
+    visualization_status = "not_required" if args.visualization_scope == "out-of-scope" else "pending"
+    write_new(
+        delivery / "DATA_VIS_CONTRACT.md",
+        "# Data Visualization Contract\n\n"
+        f"Status: {visualization_status}\n\n"
+        "## Audience, Decision, And Action\n\n"
+        "## Metric Definitions, Sources, And Reconciliation\n\n"
+        "## Chart Choices, Alternatives, And Encoding Rules\n\n"
+        "## Filters, Drill-Down, Permissions, And Exports\n\n"
+        "## Missing, Stale, Partial, And Failed Data\n\n"
+        "## Accessibility, Responsive Behavior, And Performance\n\n"
+        "## Representative Fixtures And Verification Plan\n",
+    )
+    write_new(
+        delivery / "DATA_VIS_VERIFICATION.md",
+        "# Data Visualization Verification\n\n"
+        f"Status: {visualization_status}\n\n"
+        "## Candidate, Environment, And Independent Checker\n\n"
+        "## Source Reconciliation And Metric Fixtures\n\n"
+        "## Scales, Units, Labels, Color, And Extreme Values\n\n"
+        "## Filters, Drill-Down, Permissions, And Failure States\n\n"
+        "## Browser, Responsive, Accessibility, And Performance Evidence\n\n"
         "## Blocking Defects, Accepted Risks, And Unverified Areas\n",
     )
     if context == "brownfield":

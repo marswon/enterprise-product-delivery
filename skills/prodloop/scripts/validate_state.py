@@ -19,7 +19,8 @@ MODES = {"greenfield", "feature", "workflow-change", "integration", "migration",
 PROFILES = {"Q0", "Q1", "Q2", "Q3"}
 CONTEXTS = {"greenfield", "brownfield"}
 INTERFACE_SCOPES = {"undetermined", "in-scope", "out-of-scope"}
-SCHEMA_VERSIONS = {1, 2, 3}
+VISUALIZATION_SCOPES = {"undetermined", "in-scope", "out-of-scope"}
+SCHEMA_VERSIONS = {1, 2, 3, 4}
 DEFAULT_STATE_DIR = ".prodloop"
 LEGACY_STATE_DIR = ".codex/delivery"
 BROWNFIELD_ARTIFACTS = [
@@ -82,7 +83,7 @@ def main() -> int:
     if schema_version not in SCHEMA_VERSIONS:
         errors.append(f"schema_version must be one of {sorted(SCHEMA_VERSIONS)}")
     context = state.get("project_context")
-    if schema_version in {2, 3} and context not in CONTEXTS:
+    if schema_version in {2, 3, 4} and context not in CONTEXTS:
         errors.append("project_context is invalid")
     if state.get("project_mode") not in MODES:
         errors.append("project_mode is invalid")
@@ -105,11 +106,19 @@ def main() -> int:
 
     has_interface_scope = "interface_scope" in state
     interface_scope = state.get("interface_scope")
-    if schema_version == 3 or has_interface_scope:
+    if schema_version in {3, 4} or has_interface_scope:
         if interface_scope not in INTERFACE_SCOPES:
             errors.append("interface_scope is invalid")
         elif gates.get("G0") == "passed" and interface_scope == "undetermined":
             errors.append("G0 passed but interface_scope is undetermined")
+
+    has_visualization_scope = "visualization_scope" in state
+    visualization_scope = state.get("visualization_scope")
+    if schema_version == 4 or has_visualization_scope:
+        if visualization_scope not in VISUALIZATION_SCOPES:
+            errors.append("visualization_scope is invalid")
+        elif gates.get("G0") == "passed" and visualization_scope == "undetermined":
+            errors.append("G0 passed but visualization_scope is undetermined")
 
     if stage in STAGES:
         for index in range(min(STAGES.index(stage), 9)):
@@ -125,7 +134,7 @@ def main() -> int:
         if not (delivery / filename).is_file():
             errors.append(f"Missing {filename}")
 
-    if schema_version in {2, 3} and context == "brownfield":
+    if schema_version in {2, 3, 4} and context == "brownfield":
         for filename in BROWNFIELD_ARTIFACTS:
             artifact = delivery / filename
             if not artifact.is_file():
@@ -133,7 +142,7 @@ def main() -> int:
             elif gates.get("G1") == "passed" and "Status: complete" not in artifact.read_text(encoding="utf-8"):
                 errors.append(f"G1 passed but brownfield artifact is incomplete: {filename}")
 
-    if schema_version == 3 or has_interface_scope:
+    if schema_version in {3, 4} or has_interface_scope:
         for filename in ["UI_CONTRACT.md", "UI_VERIFICATION.md"]:
             if not (delivery / filename).is_file():
                 errors.append(f"Missing {filename}")
@@ -146,6 +155,20 @@ def main() -> int:
             if gates.get("G6") == "passed" and ui_verification.is_file():
                 if "Status: complete" not in ui_verification.read_text(encoding="utf-8"):
                     errors.append("G6 passed but UI_VERIFICATION.md is incomplete")
+
+    if schema_version == 4 or has_visualization_scope:
+        for filename in ["DATA_VIS_CONTRACT.md", "DATA_VIS_VERIFICATION.md"]:
+            if not (delivery / filename).is_file():
+                errors.append(f"Missing {filename}")
+        if visualization_scope == "in-scope":
+            contract = delivery / "DATA_VIS_CONTRACT.md"
+            verification = delivery / "DATA_VIS_VERIFICATION.md"
+            if gates.get("G3") == "passed" and contract.is_file():
+                if "Status: complete" not in contract.read_text(encoding="utf-8"):
+                    errors.append("G3 passed but DATA_VIS_CONTRACT.md is incomplete")
+            if gates.get("G6") == "passed" and verification.is_file():
+                if "Status: complete" not in verification.read_text(encoding="utf-8"):
+                    errors.append("G6 passed but DATA_VIS_VERIFICATION.md is incomplete")
 
     result = {"valid": not errors, "state_dir": str(delivery), "stage": stage, "errors": errors}
     print(json.dumps(result, ensure_ascii=False, indent=2))

@@ -10,6 +10,8 @@ Choose evidence proportional to risk: flows/wireframes for structure, interactiv
 
 When `interface_scope` is `in-scope`, read [business-ui-design.md](business-ui-design.md) and maintain `UI_CONTRACT.md`. Read [visual-design-references.md](visual-design-references.md) only when visual direction is unresolved or the user asks for visual redesign. Preserve an established design system unless its replacement is explicitly in scope.
 
+When `visualization_scope` is `in-scope`, read [data-visualization-design.md](data-visualization-design.md) and maintain `DATA_VIS_CONTRACT.md`. Treat chart selection, metric definitions, scale, freshness, access, drill-down, failure states, and reconciliation as product behavior rather than decoration.
+
 Define critical task scripts before implementation: starting state, actor, goal, expected path, success signal, and failure/recovery checks.
 
-The UX portion of G3 passes when critical tasks are complete across states, domain objects/actions are clear, accessibility and responsive constraints are designed, and implementers will not need to invent product behavior while coding. For an in-scope interface, `UI_CONTRACT.md` must be marked complete.
+The UX portion of G3 passes when critical tasks are complete across states, domain objects/actions are clear, accessibility and responsive constraints are designed, and implementers will not need to invent product behavior while coding. Required UI and data-visualization contracts must be marked complete.
