@@ -51,6 +51,10 @@ def parse_args() -> argparse.Namespace:
         default="undetermined",
         help="Whether this delivery includes charts, analytical dashboards, maps, monitoring views, or visual reports",
     )
+    parser.add_argument("--context-soft-limit-k", type=int, default=120)
+    parser.add_argument("--context-checkpoint-percent", type=int, default=80)
+    parser.add_argument("--context-checkpoint-interval-actions", type=int, default=8)
+    parser.add_argument("--context-summary-max-chars", type=int, default=12000)
     parser.add_argument(
         "--state-dir",
         help=f"State directory relative to project root or absolute path (default: {DEFAULT_STATE_DIR})",
@@ -65,6 +69,14 @@ def resolve_explicit_state_dir(root: Path, value: str) -> Path:
 
 def main() -> int:
     args = parse_args()
+    if args.context_soft_limit_k <= 0:
+        raise SystemExit("Context soft limit must be positive")
+    if not 1 <= args.context_checkpoint_percent <= 100:
+        raise SystemExit("Context checkpoint percent must be between 1 and 100")
+    if args.context_checkpoint_interval_actions <= 0:
+        raise SystemExit("Context checkpoint interval must be positive")
+    if args.context_summary_max_chars < 1000:
+        raise SystemExit("Context summary max chars must be at least 1000")
     root = Path(args.project_root).resolve()
     if not root.is_dir():
         raise SystemExit(f"Project root does not exist or is not a directory: {root}")
@@ -96,7 +108,7 @@ def main() -> int:
     now = datetime.now(timezone.utc).isoformat()
     context = args.context or ("greenfield" if args.mode == "greenfield" else "brownfield")
     quote = lambda value: json.dumps(value, ensure_ascii=False)
-    manifest = f"""schema_version: 4
+    manifest = f"""schema_version: 5
 project:
   name: {quote(args.name)}
   context: {quote(context)}
@@ -124,10 +136,22 @@ budgets:
   max_failed_attempts_per_check: 3
   time_limit: ""
   cost_limit: ""
+context_management:
+  soft_limit_k: {args.context_soft_limit_k}
+  checkpoint_at_percent: {args.context_checkpoint_percent}
+  checkpoint_interval_actions: {args.context_checkpoint_interval_actions}
+  summary_max_chars: {args.context_summary_max_chars}
+  external_memory: candidate-only
 required_gates: [G0, G1, G2, G3, G4, G5, G6, G7, G8]
 """
+    next_action = (
+        "Complete the autonomy contract and G0 evidence, then perform brownfield takeover"
+        if context == "brownfield"
+        else "Complete the autonomy contract and G0 evidence"
+    )
+    quoted_objective = "\n".join(f"> {line}" for line in args.objective.splitlines())
     state = {
-        "schema_version": 4,
+        "schema_version": 5,
         "project_context": context,
         "project_mode": args.mode,
         "quality_profile": args.quality,
@@ -140,11 +164,12 @@ required_gates: [G0, G1, G2, G3, G4, G5, G6, G7, G8]
         "failed_attempts": {},
         "invalidated_artifacts": [],
         "last_verified_at": None,
-        "next_action": (
-            "Complete the autonomy contract and G0 evidence, then perform brownfield takeover"
-            if context == "brownfield"
-            else "Complete the autonomy contract and G0 evidence"
-        ),
+        "context_checkpoint_count": 0,
+        "last_context_checkpoint_at": None,
+        "material_actions_since_checkpoint": 0,
+        "context_checkpoint_due": False,
+        "context_checkpoint_reasons": [],
+        "next_action": next_action,
         "created_at": now,
         "updated_at": now,
     }
@@ -156,6 +181,38 @@ required_gates: [G0, G1, G2, G3, G4, G5, G6, G7, G8]
     write_new(delivery / "PROGRESS.md", f"# Progress\n\n- {now}: Delivery state initialized at S0.\n")
     write_new(delivery / "BLOCKED.md", "# Blocked\n\nNo blocked items.\n")
     write_new(delivery / "TRACEABILITY.md", "# Traceability\n\n| ID | Outcome | Product Rule | Design | Implementation | Positive Test | Negative Test | Evidence | Status |\n|---|---|---|---|---|---|---|---|---|\n")
+    write_new(
+        delivery / "CONTEXT.md",
+        "# Working Context\n\n"
+        "## Objective And Scope\n\n"
+        f"{quoted_objective}\n\n"
+        "## Current State And Gates\n\n"
+        "Stage: S0_INTAKE. Gates G0-G8 are pending.\n\n"
+        "## Frozen Decisions And Assumptions\n\n"
+        f"Context: {context}. Mode: {args.mode}. Quality: {args.quality}. "
+        f"Interface: {args.interface_scope}. Visualization: {args.visualization_scope}.\n\n"
+        "## Active Slice And Changed Paths\n\n"
+        "No active slice. Delivery state was initialized under the selected state directory.\n\n"
+        "## Verification And Evidence\n\n"
+        "Delivery state initialized; product baseline and gate evidence have not yet been verified.\n\n"
+        "## Open Risks, Blocks, And Unknowns\n\n"
+        "Scope, authority, budgets, and G0 evidence still require confirmation.\n\n"
+        "## Exact Next Action\n\n"
+        f"{next_action}\n",
+    )
+    write_new(
+        delivery / "CONTEXT_HISTORY.md",
+        "# Context History\n\n"
+        "| Checkpoint | Time | Reason | Stage | Revision | Characters |\n"
+        "|---|---|---|---|---|---|\n",
+    )
+    write_new(
+        delivery / "MEMORY_CANDIDATES.md",
+        "# Memory Candidates\n\n"
+        "Candidate-only. Promotion outside this repository requires explicit authority.\n\n"
+        "| ID | Reusable Lesson | Evidence | Scope | Confidence | Owner | Review Date | Status |\n"
+        "|---|---|---|---|---|---|---|---|\n",
+    )
     ui_status = "not_required" if args.interface_scope == "out-of-scope" else "pending"
     write_new(
         delivery / "UI_CONTRACT.md",

@@ -30,3 +30,4 @@ In `BLOCKED.md`, record stable ID/date, stage and scope, missing authority/fact/
 - Restore when a safe change falls below baseline.
 - Stop immediately for suspected data loss, exposure, unauthorized mutation, or unreliable rollback.
 - At budget exhaustion, deliver verified partial results; do not compress standards into a false success.
+- Context checkpointing is not delivery-budget exhaustion. Persist the working set and use supported compaction or resume behavior without discarding acceptance criteria or stopping authorized work.

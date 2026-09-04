@@ -10,7 +10,7 @@ Permission failure or missing dependencies are not a passing baseline. Do not re
 
 ## Slice Record
 
-For each slice record linked requirement/design, user-visible outcome, implementation boundary/allowed paths, dependencies/shared owners, data/permission/interface/UX/operational effects, positive/negative/recovery/regression checks, evidence, and rollback.
+For each slice record linked requirement/design, user-visible outcome, implementation boundary/allowed paths, dependencies/shared owners, data/permission/interface/UX/operational effects, positive/negative/recovery/regression checks, evidence, rollback, and the minimum artifact set needed to resume it without conversation history.
 
 Order by dependency and risk retirement. Build a thin running skeleton early, then deepen it without spreading unfinished horizontal layers.
 

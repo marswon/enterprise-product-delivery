@@ -11,6 +11,8 @@ Implement one bounded vertical slice at a time while preserving product and solu
 6. Update traceability, decisions, progress, blocks, and evidence immediately.
 7. Integrate only after the slice meets its checks.
 
+Apply [context-and-memory.md](context-and-memory.md) before changing slices, after gate decisions, and at the configured usage or action trigger. Keep raw logs in evidence files and only pointers plus current conclusions in `CONTEXT.md`.
+
 For interface slices, exercise the slice in a real browser during implementation with the contract's representative fixtures and viewports. Do not defer all rendering, text-fit, responsive, focus, or state checks to S6.
 
 Forbidden false progress: deleting/skipping tests; weakening assertions, thresholds, schemas or acceptance scripts; mocking the core claim; hard-coding results; swallowing failures; replacing real integration with static UI; or changing business scope without returning to the responsible gate.

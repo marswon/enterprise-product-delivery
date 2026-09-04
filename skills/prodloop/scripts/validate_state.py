@@ -20,7 +20,7 @@ PROFILES = {"Q0", "Q1", "Q2", "Q3"}
 CONTEXTS = {"greenfield", "brownfield"}
 INTERFACE_SCOPES = {"undetermined", "in-scope", "out-of-scope"}
 VISUALIZATION_SCOPES = {"undetermined", "in-scope", "out-of-scope"}
-SCHEMA_VERSIONS = {1, 2, 3, 4}
+SCHEMA_VERSIONS = {1, 2, 3, 4, 5}
 DEFAULT_STATE_DIR = ".prodloop"
 LEGACY_STATE_DIR = ".codex/delivery"
 BROWNFIELD_ARTIFACTS = [
@@ -65,7 +65,8 @@ def main() -> int:
         print(json.dumps({"valid": False, "errors": errors}, ensure_ascii=False, indent=2))
         return 1
     state_path = delivery / "STATE.json"
-    if not (delivery / "DELIVERY_MANIFEST.yaml").is_file():
+    manifest_path = delivery / "DELIVERY_MANIFEST.yaml"
+    if not manifest_path.is_file():
         errors.append("Missing DELIVERY_MANIFEST.yaml")
     if not state_path.is_file():
         errors.append("Missing STATE.json")
@@ -83,7 +84,7 @@ def main() -> int:
     if schema_version not in SCHEMA_VERSIONS:
         errors.append(f"schema_version must be one of {sorted(SCHEMA_VERSIONS)}")
     context = state.get("project_context")
-    if schema_version in {2, 3, 4} and context not in CONTEXTS:
+    if schema_version in {2, 3, 4, 5} and context not in CONTEXTS:
         errors.append("project_context is invalid")
     if state.get("project_mode") not in MODES:
         errors.append("project_mode is invalid")
@@ -106,7 +107,7 @@ def main() -> int:
 
     has_interface_scope = "interface_scope" in state
     interface_scope = state.get("interface_scope")
-    if schema_version in {3, 4} or has_interface_scope:
+    if schema_version in {3, 4, 5} or has_interface_scope:
         if interface_scope not in INTERFACE_SCOPES:
             errors.append("interface_scope is invalid")
         elif gates.get("G0") == "passed" and interface_scope == "undetermined":
@@ -114,7 +115,7 @@ def main() -> int:
 
     has_visualization_scope = "visualization_scope" in state
     visualization_scope = state.get("visualization_scope")
-    if schema_version == 4 or has_visualization_scope:
+    if schema_version in {4, 5} or has_visualization_scope:
         if visualization_scope not in VISUALIZATION_SCOPES:
             errors.append("visualization_scope is invalid")
         elif gates.get("G0") == "passed" and visualization_scope == "undetermined":
@@ -134,7 +135,7 @@ def main() -> int:
         if not (delivery / filename).is_file():
             errors.append(f"Missing {filename}")
 
-    if schema_version in {2, 3, 4} and context == "brownfield":
+    if schema_version in {2, 3, 4, 5} and context == "brownfield":
         for filename in BROWNFIELD_ARTIFACTS:
             artifact = delivery / filename
             if not artifact.is_file():
@@ -142,7 +143,7 @@ def main() -> int:
             elif gates.get("G1") == "passed" and "Status: complete" not in artifact.read_text(encoding="utf-8"):
                 errors.append(f"G1 passed but brownfield artifact is incomplete: {filename}")
 
-    if schema_version in {3, 4} or has_interface_scope:
+    if schema_version in {3, 4, 5} or has_interface_scope:
         for filename in ["UI_CONTRACT.md", "UI_VERIFICATION.md"]:
             if not (delivery / filename).is_file():
                 errors.append(f"Missing {filename}")
@@ -156,7 +157,7 @@ def main() -> int:
                 if "Status: complete" not in ui_verification.read_text(encoding="utf-8"):
                     errors.append("G6 passed but UI_VERIFICATION.md is incomplete")
 
-    if schema_version == 4 or has_visualization_scope:
+    if schema_version in {4, 5} or has_visualization_scope:
         for filename in ["DATA_VIS_CONTRACT.md", "DATA_VIS_VERIFICATION.md"]:
             if not (delivery / filename).is_file():
                 errors.append(f"Missing {filename}")
@@ -169,6 +170,42 @@ def main() -> int:
             if gates.get("G6") == "passed" and verification.is_file():
                 if "Status: complete" not in verification.read_text(encoding="utf-8"):
                     errors.append("G6 passed but DATA_VIS_VERIFICATION.md is incomplete")
+
+    context_fields = {
+        "context_checkpoint_count",
+        "last_context_checkpoint_at",
+        "material_actions_since_checkpoint",
+        "context_checkpoint_due",
+        "context_checkpoint_reasons",
+    }
+    has_context_management = any(field in state for field in context_fields)
+    if schema_version == 5 or has_context_management:
+        checkpoint_count = state.get("context_checkpoint_count")
+        if not isinstance(checkpoint_count, int) or isinstance(checkpoint_count, bool) or checkpoint_count < 0:
+            errors.append("context_checkpoint_count must be a non-negative integer")
+        last_checkpoint = state.get("last_context_checkpoint_at")
+        if last_checkpoint is not None and (not isinstance(last_checkpoint, str) or not last_checkpoint.strip()):
+            errors.append("last_context_checkpoint_at must be null or a non-empty string")
+        action_count = state.get("material_actions_since_checkpoint")
+        if not isinstance(action_count, int) or isinstance(action_count, bool) or action_count < 0:
+            errors.append("material_actions_since_checkpoint must be a non-negative integer")
+        if not isinstance(state.get("context_checkpoint_due"), bool):
+            errors.append("context_checkpoint_due must be a boolean")
+        reasons = state.get("context_checkpoint_reasons")
+        if not isinstance(reasons, list) or not all(isinstance(item, str) and item for item in reasons):
+            errors.append("context_checkpoint_reasons must be a list of non-empty strings")
+        elif isinstance(state.get("context_checkpoint_due"), bool) and state["context_checkpoint_due"] != bool(reasons):
+            errors.append("context_checkpoint_due must match context_checkpoint_reasons")
+        if isinstance(checkpoint_count, int) and not isinstance(checkpoint_count, bool):
+            if checkpoint_count == 0 and last_checkpoint is not None:
+                errors.append("last_context_checkpoint_at must be null when no checkpoint exists")
+            if checkpoint_count > 0 and last_checkpoint is None:
+                errors.append("last_context_checkpoint_at is required after a checkpoint")
+        if manifest_path.is_file() and "\ncontext_management:\n" not in f"\n{manifest_path.read_text(encoding='utf-8')}":
+            errors.append("Missing context_management configuration in DELIVERY_MANIFEST.yaml")
+        for filename in ["CONTEXT.md", "CONTEXT_HISTORY.md", "MEMORY_CANDIDATES.md"]:
+            if not (delivery / filename).is_file():
+                errors.append(f"Missing {filename}")
 
     result = {"valid": not errors, "state_dir": str(delivery), "stage": stage, "errors": errors}
     print(json.dumps(result, ensure_ascii=False, indent=2))

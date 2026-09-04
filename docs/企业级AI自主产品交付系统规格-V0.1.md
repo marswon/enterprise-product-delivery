@@ -8,6 +8,8 @@
 
 > V0.5 兼容说明：当前实现要求在 G0 前明确 `interface_scope` 和 `visualization_scope`。界面在范围内时，G3/G6 分别要求 `UI_CONTRACT.md` 和 `UI_VERIFICATION.md`；数据可视化在范围内时，G3/G6 分别要求 `DATA_VIS_CONTRACT.md` 和 `DATA_VIS_VERIFICATION.md`。当前规则以 Skill references 为准。
 
+> V0.6 兼容说明：当前实现进一步加入可配置的上下文预算、`CONTEXT.md` 工作摘要、检查点历史和候选长期记忆。状态 schema V5 兼容 V1-V4；检查点不等同于宿主已执行 token 压缩。
+
 ## 1. 目标
 
 建立一套可复用于新产品、已有系统功能开发、企业流程改造、系统集成和迁移项目的 AI 产品交付系统，使 AI 能够在已授权边界内，从模糊目标开始，连续完成：

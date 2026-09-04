@@ -56,7 +56,7 @@ class ProdloopScriptTests(unittest.TestCase):
             self.assertTrue((project / ".prodloop" / "STATE.json").is_file())
             self.assertFalse((project / ".codex" / "delivery").exists())
             state = json.loads((project / ".prodloop" / "STATE.json").read_text())
-            self.assertEqual(state["schema_version"], 4)
+            self.assertEqual(state["schema_version"], 5)
             self.assertEqual(state["project_context"], "brownfield")
             self.assertEqual(state["interface_scope"], "undetermined")
             self.assertEqual(state["visualization_scope"], "undetermined")
@@ -64,6 +64,15 @@ class ProdloopScriptTests(unittest.TestCase):
             self.assertTrue((project / ".prodloop" / "UI_VERIFICATION.md").is_file())
             self.assertTrue((project / ".prodloop" / "DATA_VIS_CONTRACT.md").is_file())
             self.assertTrue((project / ".prodloop" / "DATA_VIS_VERIFICATION.md").is_file())
+            self.assertEqual(state["context_checkpoint_count"], 0)
+            self.assertIsNone(state["last_context_checkpoint_at"])
+            self.assertEqual(state["material_actions_since_checkpoint"], 0)
+            self.assertFalse(state["context_checkpoint_due"])
+            self.assertEqual(state["context_checkpoint_reasons"], [])
+            self.assertTrue((project / ".prodloop" / "CONTEXT.md").is_file())
+            self.assertTrue((project / ".prodloop" / "CONTEXT_HISTORY.md").is_file())
+            self.assertTrue((project / ".prodloop" / "MEMORY_CANDIDATES.md").is_file())
+            self.assertIn("soft_limit_k: 120", (project / ".prodloop" / "DELIVERY_MANIFEST.yaml").read_text())
 
             validation = run_script("validate_state.py", "--project-root", str(project))
             self.assertEqual(validation.returncode, 0, validation.stdout + validation.stderr)
@@ -117,12 +126,20 @@ class ProdloopScriptTests(unittest.TestCase):
             state.pop("project_context")
             state.pop("interface_scope")
             state.pop("visualization_scope")
+            state.pop("context_checkpoint_count")
+            state.pop("last_context_checkpoint_at")
+            state.pop("material_actions_since_checkpoint")
+            state.pop("context_checkpoint_due")
+            state.pop("context_checkpoint_reasons")
             state_path.write_text(json.dumps(state), encoding="utf-8")
             for filename in [
                 "UI_CONTRACT.md",
                 "UI_VERIFICATION.md",
                 "DATA_VIS_CONTRACT.md",
                 "DATA_VIS_VERIFICATION.md",
+                "CONTEXT.md",
+                "CONTEXT_HISTORY.md",
+                "MEMORY_CANDIDATES.md",
             ]:
                 (project / ".prodloop" / filename).unlink()
 
@@ -138,12 +155,20 @@ class ProdloopScriptTests(unittest.TestCase):
             state["schema_version"] = 2
             state.pop("interface_scope")
             state.pop("visualization_scope")
+            state.pop("context_checkpoint_count")
+            state.pop("last_context_checkpoint_at")
+            state.pop("material_actions_since_checkpoint")
+            state.pop("context_checkpoint_due")
+            state.pop("context_checkpoint_reasons")
             state_path.write_text(json.dumps(state), encoding="utf-8")
             for filename in [
                 "UI_CONTRACT.md",
                 "UI_VERIFICATION.md",
                 "DATA_VIS_CONTRACT.md",
                 "DATA_VIS_VERIFICATION.md",
+                "CONTEXT.md",
+                "CONTEXT_HISTORY.md",
+                "MEMORY_CANDIDATES.md",
             ]:
                 (project / ".prodloop" / filename).unlink()
 
@@ -159,9 +184,38 @@ class ProdloopScriptTests(unittest.TestCase):
             state = json.loads(state_path.read_text())
             state["schema_version"] = 3
             state.pop("visualization_scope")
+            state.pop("context_checkpoint_count")
+            state.pop("last_context_checkpoint_at")
+            state.pop("material_actions_since_checkpoint")
+            state.pop("context_checkpoint_due")
+            state.pop("context_checkpoint_reasons")
             state_path.write_text(json.dumps(state), encoding="utf-8")
             (delivery / "DATA_VIS_CONTRACT.md").unlink()
             (delivery / "DATA_VIS_VERIFICATION.md").unlink()
+            (delivery / "CONTEXT.md").unlink()
+            (delivery / "CONTEXT_HISTORY.md").unlink()
+            (delivery / "MEMORY_CANDIDATES.md").unlink()
+
+            validation = run_script("validate_state.py", "--project-root", str(project))
+            self.assertEqual(validation.returncode, 0, validation.stdout + validation.stderr)
+
+    def test_v4_state_without_context_management_remains_valid(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp)
+            self.assertEqual(initialize(project).returncode, 0)
+            delivery = project / ".prodloop"
+            state_path = delivery / "STATE.json"
+            state = json.loads(state_path.read_text())
+            state["schema_version"] = 4
+            state.pop("context_checkpoint_count")
+            state.pop("last_context_checkpoint_at")
+            state.pop("material_actions_since_checkpoint")
+            state.pop("context_checkpoint_due")
+            state.pop("context_checkpoint_reasons")
+            state_path.write_text(json.dumps(state), encoding="utf-8")
+            (delivery / "CONTEXT.md").unlink()
+            (delivery / "CONTEXT_HISTORY.md").unlink()
+            (delivery / "MEMORY_CANDIDATES.md").unlink()
 
             validation = run_script("validate_state.py", "--project-root", str(project))
             self.assertEqual(validation.returncode, 0, validation.stdout + validation.stderr)
@@ -208,7 +262,7 @@ class ProdloopScriptTests(unittest.TestCase):
             self.assertEqual(enabled_again.returncode, 0, enabled_again.stdout + enabled_again.stderr)
             self.assertIn("Preserve this content.", contract.read_text())
 
-    def test_g0_requires_explicit_interface_and_visualization_scope_for_v4(self) -> None:
+    def test_g0_requires_explicit_interface_and_visualization_scope_for_v5(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             project = Path(tmp)
             self.assertEqual(initialize(project, mode="greenfield").returncode, 0)
@@ -366,6 +420,140 @@ class ProdloopScriptTests(unittest.TestCase):
             )
             self.assertEqual(enabled_again.returncode, 0, enabled_again.stdout + enabled_again.stderr)
             self.assertIn("Preserve this content.", contract.read_text())
+
+    def test_legacy_state_can_enable_context_management_without_overwrite(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp)
+            self.assertEqual(initialize(project, mode="greenfield").returncode, 0)
+            delivery = project / ".prodloop"
+            state_path = delivery / "STATE.json"
+            state = json.loads(state_path.read_text())
+            state["schema_version"] = 4
+            state.pop("context_checkpoint_count")
+            state.pop("last_context_checkpoint_at")
+            state.pop("material_actions_since_checkpoint")
+            state.pop("context_checkpoint_due")
+            state.pop("context_checkpoint_reasons")
+            state_path.write_text(json.dumps(state), encoding="utf-8")
+            for filename in ["CONTEXT.md", "CONTEXT_HISTORY.md", "MEMORY_CANDIDATES.md"]:
+                (delivery / filename).unlink()
+            manifest_path = delivery / "DELIVERY_MANIFEST.yaml"
+            before, after = manifest_path.read_text().split("context_management:\n", 1)
+            _, suffix = after.split("required_gates:", 1)
+            manifest_path.write_text(before + "required_gates:" + suffix)
+
+            enabled = run_script("enable_context_management.py", "--project-root", str(project))
+            self.assertEqual(enabled.returncode, 0, enabled.stdout + enabled.stderr)
+            upgraded = json.loads(state_path.read_text())
+            self.assertEqual(upgraded["schema_version"], 4)
+            self.assertEqual(upgraded["context_checkpoint_count"], 0)
+            self.assertEqual(upgraded["material_actions_since_checkpoint"], 0)
+            self.assertFalse(upgraded["context_checkpoint_due"])
+            self.assertTrue((delivery / "STATE.before-context-enable.json").is_file())
+            self.assertTrue((delivery / "DELIVERY_MANIFEST.before-context-enable.yaml").is_file())
+            self.assertIn("context_management:", manifest_path.read_text())
+            premature = run_script(
+                "checkpoint_context.py",
+                "--project-root", str(project),
+                "--reason", "manual",
+            )
+            self.assertNotEqual(premature.returncode, 0)
+            self.assertIn("empty or unresolved", premature.stderr)
+            context_file = delivery / "CONTEXT.md"
+            context_file.write_text(context_file.read_text() + "\nPreserve this content.\n")
+
+            enabled_again = run_script("enable_context_management.py", "--project-root", str(project))
+            self.assertEqual(enabled_again.returncode, 0, enabled_again.stdout + enabled_again.stderr)
+            self.assertIn("Preserve this content.", context_file.read_text())
+
+    def test_context_checkpoint_records_bounded_resume_packet(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp)
+            self.assertEqual(initialize(project, mode="greenfield").returncode, 0)
+            delivery = project / ".prodloop"
+
+            checkpoint = run_script(
+                "checkpoint_context.py",
+                "--project-root", str(project),
+                "--reason", "manual",
+                "--revision", "abc1234",
+            )
+            self.assertEqual(checkpoint.returncode, 0, checkpoint.stdout + checkpoint.stderr)
+            payload = json.loads(checkpoint.stdout)
+            self.assertEqual(payload["checkpoint"], "CP-0001")
+            state = json.loads((delivery / "STATE.json").read_text())
+            self.assertEqual(state["context_checkpoint_count"], 1)
+            self.assertIsNotNone(state["last_context_checkpoint_at"])
+            self.assertIn("abc1234", (delivery / "CONTEXT_HISTORY.md").read_text())
+
+            context_file = delivery / "CONTEXT.md"
+            context_file.write_text(context_file.read_text().replace(
+                state["next_action"],
+                "A different action",
+            ))
+            rejected = run_script(
+                "checkpoint_context.py",
+                "--project-root", str(project),
+                "--reason", "manual",
+            )
+            self.assertNotEqual(rejected.returncode, 0)
+            self.assertIn("next_action verbatim", rejected.stderr)
+
+    def test_context_budget_tracks_actions_and_reported_usage(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp)
+            self.assertEqual(initialize(project, mode="greenfield").returncode, 0)
+            delivery = project / ".prodloop"
+
+            for _ in range(7):
+                tracked = run_script("track_context_budget.py", "--project-root", str(project))
+                self.assertEqual(tracked.returncode, 0, tracked.stdout + tracked.stderr)
+                self.assertFalse(json.loads(tracked.stdout)["checkpoint_due"])
+            tracked = run_script("track_context_budget.py", "--project-root", str(project))
+            payload = json.loads(tracked.stdout)
+            self.assertTrue(payload["checkpoint_due"])
+            self.assertIn("action-interval", payload["reasons"])
+
+            checkpoint = run_script(
+                "checkpoint_context.py",
+                "--project-root", str(project),
+                "--reason", "action-interval",
+            )
+            self.assertEqual(checkpoint.returncode, 0, checkpoint.stdout + checkpoint.stderr)
+            state = json.loads((delivery / "STATE.json").read_text())
+            self.assertEqual(state["material_actions_since_checkpoint"], 0)
+            self.assertFalse(state["context_checkpoint_due"])
+
+            tracked = run_script(
+                "track_context_budget.py",
+                "--project-root", str(project),
+                "--reported-context-k", "96",
+            )
+            payload = json.loads(tracked.stdout)
+            self.assertTrue(payload["checkpoint_due"])
+            self.assertIn("soft-limit", payload["reasons"])
+
+    def test_v5_requires_context_artifacts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp)
+            self.assertEqual(initialize(project).returncode, 0)
+            delivery = project / ".prodloop"
+            context_path = delivery / "CONTEXT.md"
+            context_content = context_path.read_text()
+            context_path.unlink()
+
+            validation = run_script("validate_state.py", "--project-root", str(project))
+            self.assertNotEqual(validation.returncode, 0)
+            self.assertIn("Missing CONTEXT.md", validation.stdout)
+
+            context_path.write_text(context_content)
+            manifest_path = delivery / "DELIVERY_MANIFEST.yaml"
+            before, after = manifest_path.read_text().split("context_management:\n", 1)
+            _, suffix = after.split("required_gates:", 1)
+            manifest_path.write_text(before + "required_gates:" + suffix)
+            validation = run_script("validate_state.py", "--project-root", str(project))
+            self.assertNotEqual(validation.returncode, 0)
+            self.assertIn("Missing context_management configuration", validation.stdout)
 
     def test_legacy_state_is_auto_detected(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
