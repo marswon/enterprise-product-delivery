@@ -477,14 +477,20 @@ class ProdloopScriptTests(unittest.TestCase):
                 "--project-root", str(project),
                 "--reason", "manual",
                 "--revision", "abc1234",
+                "--runtime", "kimi",
+                "--compaction-mode", "command",
             )
             self.assertEqual(checkpoint.returncode, 0, checkpoint.stdout + checkpoint.stderr)
             payload = json.loads(checkpoint.stdout)
             self.assertEqual(payload["checkpoint"], "CP-0001")
+            self.assertEqual(payload["runtime"], "kimi")
+            self.assertEqual(payload["compaction_mode"], "command")
             state = json.loads((delivery / "STATE.json").read_text())
             self.assertEqual(state["context_checkpoint_count"], 1)
             self.assertIsNotNone(state["last_context_checkpoint_at"])
-            self.assertIn("abc1234", (delivery / "CONTEXT_HISTORY.md").read_text())
+            history = (delivery / "CONTEXT_HISTORY.md").read_text()
+            self.assertIn("abc1234", history)
+            self.assertIn("runtime=kimi; compaction=command", history)
 
             context_file = delivery / "CONTEXT.md"
             context_file.write_text(context_file.read_text().replace(
@@ -498,6 +504,21 @@ class ProdloopScriptTests(unittest.TestCase):
             )
             self.assertNotEqual(rejected.returncode, 0)
             self.assertIn("next_action verbatim", rejected.stderr)
+
+    def test_context_checkpoint_rejects_wrong_runtime_compaction_route(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp)
+            self.assertEqual(initialize(project, mode="greenfield").returncode, 0)
+
+            rejected = run_script(
+                "checkpoint_context.py",
+                "--project-root", str(project),
+                "--reason", "before-compaction",
+                "--runtime", "kimi",
+                "--compaction-mode", "automatic",
+            )
+            self.assertNotEqual(rejected.returncode, 0)
+            self.assertIn("Kimi Code compaction mode", rejected.stderr)
 
     def test_context_budget_tracks_actions_and_reported_usage(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

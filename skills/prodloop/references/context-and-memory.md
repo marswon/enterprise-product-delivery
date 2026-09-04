@@ -11,7 +11,7 @@ New deliveries use these configurable defaults:
 - fallback trigger: every `8` material actions;
 - compact working summary: at most `12000` characters.
 
-Use exact token triggers only when the runtime exposes trustworthy context usage. Do not estimate token counts from intuition or claim that compaction occurred without runtime evidence. When usage is unavailable, checkpoint at the fallback triggers below.
+These are prodloop checkpoint-preparation thresholds, not Codex's internal automatic-compaction threshold and not a claim about when Kimi Code will compact. Use exact token triggers only when the runtime exposes trustworthy context usage. Do not estimate token counts from intuition or claim that compaction occurred without runtime evidence. When usage is unavailable, checkpoint at the fallback triggers below.
 
 A material action changes code, a contract, a decision, a gate, a test result, a block, or the active slice. Routine file reads and repeated polls do not count.
 
@@ -47,11 +47,15 @@ Do not interrupt an atomic edit or migration merely to checkpoint. Finish or saf
 1. Move durable facts into their owning artifacts. Do not dump raw conversation into `CONTEXT.md`.
 2. Rewrite `CONTEXT.md` from current evidence. Include objective and scope, current state/gates, frozen decisions and assumptions, active slice and changed paths, verification and evidence pointers, open risks/blocks/unknowns, and the exact `STATE.json.next_action`.
 3. Keep the packet self-contained but bounded. Replace old narrative with current conclusions and file/evidence pointers.
-4. Run `python3 "<SKILL_DIR>/scripts/checkpoint_context.py" --project-root <project-root> --reason <reason> [--revision <git-revision>]`. The script reads `summary_max_chars` from the manifest.
-5. If the runtime exposes a documented callable compaction mechanism, use it after the checkpoint. Do not invent a command. If compaction requires user interaction or is unavailable, continue from the bounded working set and report the limitation honestly.
-6. After compaction or resume, read only `STATE.json`, `CONTEXT.md`, the manifest, current blocks, and references/artifacts needed for the active stage. Retrieve older evidence by pointer instead of reloading the whole history.
+4. Run `python3 "<SKILL_DIR>/scripts/checkpoint_context.py" --project-root <project-root> --reason <reason> [--revision <git-revision>] --runtime <codex|kimi|other> --compaction-mode <automatic|command|none|unavailable>`. The script reads `summary_max_chars` from the manifest and records the selected runtime route in checkpoint history. This route is not proof that host compaction has already occurred.
+5. Follow the runtime-specific route only after step 4 succeeds:
+   - **Codex:** use `--runtime codex --compaction-mode automatic` before expected automatic compaction. Let Codex compact automatically; do not invent a manual command.
+   - **Kimi Code:** use `--runtime kimi --compaction-mode command`, then execute `/compact`. Never execute `/compact` before durable facts, material failures, evidence pointers, and the exact `next_action` are saved and validated.
+   - **No compaction needed:** use `--compaction-mode none`. Do not repeatedly call `/compact` when no meaningful context has accumulated merely because a gate or final checkpoint was recorded.
+   - **Other or unsupported host:** use the documented host mechanism or record `unavailable`; never claim the checkpoint itself reduced runtime tokens.
+6. After Codex automatic compaction, Kimi `/compact`, or session resume, reload `STATE.json`, `CONTEXT.md`, the manifest, `BLOCKED.md`, and current-stage artifacts. Then retrieve only the additional references and older evidence named by those files instead of reloading the whole history.
 
-The checkpoint script validates structure, size, and exact next action, records the checkpoint in `CONTEXT_HISTORY.md` and `STATE.json`, and resets the material-action counter. It does not compact the model runtime itself.
+The checkpoint script validates structure, size, and exact next action, records the runtime and selected compaction route in `CONTEXT_HISTORY.md`, updates `STATE.json`, and resets the material-action counter. It does not compact the model runtime itself. Runtime UI or command evidence is still required before stating that compaction actually happened.
 
 ## Writing A Useful Working Set
 

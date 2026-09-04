@@ -9,7 +9,11 @@ Deliver the right product, not merely finished code. Treat the work as a gated s
 
 ## Runtime And Paths
 
-This Skill supports Codex and Kimi Code. Invocation syntax differs, but the delivery lifecycle is the same.
+This Skill supports Codex and Kimi Code. Invocation syntax differs, but the delivery lifecycle is the same. Context compaction is runtime-specific:
+
+- **Codex:** create and validate the durable checkpoint before expected automatic compaction. Do not invent or invoke a manual compaction command. After automatic compaction, resume from the durable working set and authoritative artifacts.
+- **Kimi Code:** create and validate the durable checkpoint first, then execute `/compact` when meaningful context has accumulated. After `/compact`, reload the durable working set before continuing. Never execute `/compact` before exact `next_action`, durable facts, failures, and evidence pointers are saved.
+- **Other runtimes:** use only a documented mechanism actually exposed by the host. Otherwise checkpoint without claiming compaction occurred.
 
 1. Resolve `SKILL_DIR` as the absolute directory containing this loaded `SKILL.md`. Kimi Code may expose `${KIMI_SKILL_DIR}`; other runtimes may provide the loaded Skill path directly. Do not resolve `references/` or `scripts/` from the product repository.
 2. Run every bundled helper as `python3 "<SKILL_DIR>/scripts/<script>.py" ...`, replacing `<SKILL_DIR>` with the resolved absolute path.
@@ -25,7 +29,7 @@ This Skill supports Codex and Kimi Code. Invocation syntax differs, but the deli
 5. Do not let the maker alter frozen acceptance criteria or declare final acceptance.
 6. Never turn a proposal, mock, unverified command, or generated artifact into a completed-delivery claim.
 7. Stop on missing authority, consequential ambiguity, irreversible action, evidence failure, or exhausted retry budget.
-8. Treat chat context as disposable; preserve durable truth and a bounded resume packet before compaction or handoff.
+8. Treat chat context as disposable; preserve durable truth and a bounded resume packet before automatic compaction, `/compact`, or handoff.
 
 ## Start Or Resume
 

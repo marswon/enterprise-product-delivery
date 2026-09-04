@@ -12,6 +12,8 @@ from pathlib import Path
 DEFAULT_STATE_DIR = ".prodloop"
 LEGACY_STATE_DIR = ".codex/delivery"
 REASONS = {"soft-limit", "action-interval", "gate", "slice", "before-compaction", "handoff", "completion", "manual"}
+RUNTIMES = {"codex", "kimi", "other"}
+COMPACTION_MODES = {"automatic", "command", "none", "unavailable"}
 REQUIRED_SECTIONS = [
     "Objective And Scope",
     "Current State And Gates",
@@ -29,6 +31,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--state-dir", help="State directory relative to project root or absolute path")
     parser.add_argument("--reason", choices=sorted(REASONS), required=True)
     parser.add_argument("--revision", default="unknown")
+    parser.add_argument("--runtime", choices=sorted(RUNTIMES), default="other")
+    parser.add_argument("--compaction-mode", choices=sorted(COMPACTION_MODES), default="unavailable")
     return parser.parse_args()
 
 
@@ -90,6 +94,10 @@ def read_summary_max_chars(manifest_path: Path) -> int:
 
 def main() -> int:
     args = parse_args()
+    if args.runtime == "codex" and args.compaction_mode not in {"automatic", "none"}:
+        raise SystemExit("Codex compaction mode must be automatic or none")
+    if args.runtime == "kimi" and args.compaction_mode not in {"command", "none"}:
+        raise SystemExit("Kimi Code compaction mode must be command or none")
     root = Path(args.project_root).resolve()
     delivery = resolve_delivery_dir(root, args.state_dir)
     state_path = delivery / "STATE.json"
@@ -122,6 +130,9 @@ def main() -> int:
     stage = clean_cell(str(state.get("current_stage", "unknown")), "stage")
     revision = clean_cell(args.revision, "revision")
     reason = clean_cell(args.reason, "reason")
+    runtime = clean_cell(args.runtime, "runtime")
+    compaction_mode = clean_cell(args.compaction_mode, "compaction mode")
+    history_reason = f"{reason} [runtime={runtime}; compaction={compaction_mode}]"
 
     state["context_checkpoint_count"] = count + 1
     state["last_context_checkpoint_at"] = now
@@ -131,12 +142,14 @@ def main() -> int:
     state["updated_at"] = now
     state_path.write_text(json.dumps(state, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     with history_path.open("a", encoding="utf-8") as handle:
-        handle.write(f"| {checkpoint_id} | {now} | {reason} | {stage} | {revision} | {len(content)} |\n")
+        handle.write(f"| {checkpoint_id} | {now} | {history_reason} | {stage} | {revision} | {len(content)} |\n")
 
     print(json.dumps({
         "checkpoint": checkpoint_id,
         "time": now,
         "reason": reason,
+        "runtime": runtime,
+        "compaction_mode": compaction_mode,
         "stage": stage,
         "revision": revision,
         "characters": len(content),
